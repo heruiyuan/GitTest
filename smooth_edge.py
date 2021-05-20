@@ -1911,7 +1911,7 @@ class MESH_TO_draw_annotate(bpy.types.Operator):
             context.scene.tool_settings.annotation_stroke_placement_view3d = 'SURFACE'
             context.space_data.show_gizmo_object_translate = False
             mytool.selected_object_name = context.object.name
-
+        bpy.ops.ed.undo_push()
         return {'FINISHED'}
 
 class MESH_TO_generate_coordinate(bpy.types.Operator):
@@ -2029,7 +2029,7 @@ class MESH_TO_generate_coordinate(bpy.types.Operator):
             bpy.context.scene.transform_orientation_slots[1].type = 'LOCAL'
             bpy.context.space_data.show_gizmo_object_rotate = True
             bpy.context.space_data.show_gizmo_object_translate = True
-
+        bpy.ops.ed.undo_push()
         return {'FINISHED'}
 
 class MESH_TO_filp_z_orientation(bpy.types.Operator):
@@ -2059,7 +2059,7 @@ class MESH_TO_filp_z_orientation(bpy.types.Operator):
             print(c)
             bpy.ops.transform.rotate(value=3.14159, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
 
-            
+        bpy.ops.ed.undo_push()    
         return {'FINISHED'}
 
 class MESH_TO_change_local_orientation(bpy.types.Operator):
