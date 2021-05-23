@@ -2094,7 +2094,8 @@ class MESH_TO_generate_coordinate(bpy.types.Operator):
 
             bpy.ops.ed.undo_push()
 
-            context.object.name = tooth_object.name + 'coordinate'
+            context.object.data.name = '_' + tooth_object.name + '_coordinate'
+            context.object.name = '_' + tooth_object.name + '_coordinate'
 
             M.row[0][3] = tooth_object.matrix_local.row[0][3]
             M.row[1][3] = tooth_object.matrix_local.row[1][3]
@@ -2119,7 +2120,7 @@ class MESH_TO_filp_z_orientation(bpy.types.Operator):
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
 
-        if len(context.selected_objects) == 1 and context.selected_objects[0].name.endswith('coordinate'):
+        if len(context.selected_objects) == 1 and context.selected_objects[0].name.endswith('_coordinate'):
             matrix_local = context.object.matrix_local.copy()
             M = matrix_local.to_3x3()
             print(M)
@@ -2151,7 +2152,7 @@ class MESH_TO_change_local_orientation(bpy.types.Operator):
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
 
         if len(context.selected_objects) == 1:
-            coord_name = context.object.name + 'coordinate'
+            coord_name = context.object.name + '_coordinate'
             context.collection.objects[coord_name].hide_set(False)
             bpy.ops.object.select_all(action='DESELECT')
             context.view_layer.objects.active = context.collection.objects[coord_name]
@@ -2178,8 +2179,8 @@ class MESH_TO_apply_orientation(bpy.types.Operator):
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
 
-        if len(context.selected_objects) and context.object.name.endswith('coordinate'):
-            tooth_name = context.object.name.rstrip('coordinate')
+        if len(context.selected_objects) and context.object.name.endswith('_coordinate'):
+            tooth_name = context.object.name.rstrip('_coordinate')
             tooth_object = context.collection.objects[tooth_name]
             coord_object = context.object
             context.view_layer.objects.active = tooth_object
@@ -2204,7 +2205,8 @@ class MESH_TO_apply_orientation(bpy.types.Operator):
             context.object.hide_set(True)
             # context.objects.data.material.
             sysGaveName = coord_name + '.001'
-            newName = coord_name.rstrip('coordinate')
+            newName = coord_name.rstrip('_coordinate')
+            newName = newName.lstrip('_')
 
             mat = bpy.data.materials.get("Teeth Color")
             if mat is None:
@@ -2239,16 +2241,15 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
 
-
         bpy.ops.object.select_all(action='DESELECT')
         for obj in context.collection.objects:
             if obj.name.endswith('_'):
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
                 origin = mathutils.Vector((0, 0, 0))
-                direction_x = mathutils.Vector((0, 0, 1))
+                direction_z = mathutils.Vector((0, 0, 1))
                 dis = 10
-                result = obj.ray_cast(origin, direction_x, distance=dis, depsgraph=None)
+                result = obj.ray_cast(origin, direction_z, distance=dis, depsgraph=None)
                 if result[0] == True: 
                     context.object.data.polygons[result[3]].select = True
         bpy.ops.object.mode_set(mode='EDIT')
@@ -2890,14 +2891,7 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         row = self.layout.row(align=True)
         knifePanel = row.operator('mesh.knife_panel', text='Knife Panel', icon='MOD_OFFSET')
         cutTeeth = row.operator('mesh.cut_teeth', text='Cut Teeth', icon='SCULPTMODE_HLT')
-        # change local Frame orientation buttons
-        row = self.layout.row(align=True)
-        draw_annotate = row.operator('mesh.draw_annotate', text='', icon='GREASEPENCIL')
-        generate_coordinate = row.operator('mesh.generate_coordinate', text='', icon='OUTLINER_OB_EMPTY')
-        applyOrientation = row.operator('mesh.apply_orientation', text='', icon='CHECKMARK')
-        changeOrientation = row.operator('mesh.change_local_orientation', text='', icon='ORIENTATION_GIMBAL')
-        filp_z_orientation = row.operator('mesh.filp_z_orientation', text='', icon='MOD_TRIANGULATE')
-        # separator bar
+        
         self.layout.separator()
         row = self.layout.row(align=True)
         U_18 = row.prop(mytool, 'U_18', text='18', toggle=1)
@@ -2917,24 +2911,35 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         U_27 = row.prop(mytool, 'U_27', text='27', toggle=1)
         U_28 = row.prop(mytool, 'U_28', text='28', toggle=1)
         row = self.layout.row(align=True)
-        D_38 = row.prop(mytool, 'D_38', text='38', toggle=1)
-        D_37 = row.prop(mytool, 'D_37', text='37', toggle=1)
-        D_36 = row.prop(mytool, 'D_36', text='36', toggle=1)
-        D_35 = row.prop(mytool, 'D_35', text='35', toggle=1)
-        D_34 = row.prop(mytool, 'D_34', text='34', toggle=1)
-        D_33 = row.prop(mytool, 'D_33', text='33', toggle=1)
-        D_32 = row.prop(mytool, 'D_32', text='32', toggle=1)
-        D_31 = row.prop(mytool, 'D_31', text='31', toggle=1)
-        D_41 = row.prop(mytool, 'D_41', text='41', toggle=1)
-        D_42 = row.prop(mytool, 'D_42', text='42', toggle=1)
-        D_43 = row.prop(mytool, 'D_43', text='43', toggle=1)
-        D_44 = row.prop(mytool, 'D_44', text='44', toggle=1)
-        D_45 = row.prop(mytool, 'D_45', text='45', toggle=1)
-        D_46 = row.prop(mytool, 'D_46', text='46', toggle=1)
-        D_47 = row.prop(mytool, 'D_47', text='47', toggle=1)
+        
         D_48 = row.prop(mytool, 'D_48', text='48', toggle=1)
+        D_47 = row.prop(mytool, 'D_47', text='47', toggle=1)
+        D_46 = row.prop(mytool, 'D_46', text='46', toggle=1)
+        D_45 = row.prop(mytool, 'D_45', text='45', toggle=1)
+        D_44 = row.prop(mytool, 'D_44', text='44', toggle=1)
+        D_43 = row.prop(mytool, 'D_43', text='43', toggle=1)
+        D_42 = row.prop(mytool, 'D_42', text='42', toggle=1)
+        D_41 = row.prop(mytool, 'D_41', text='41', toggle=1)
+        D_31 = row.prop(mytool, 'D_31', text='31', toggle=1)
+        D_32 = row.prop(mytool, 'D_32', text='32', toggle=1)
+        D_33 = row.prop(mytool, 'D_33', text='33', toggle=1)
+        D_34 = row.prop(mytool, 'D_34', text='34', toggle=1)
+        D_35 = row.prop(mytool, 'D_35', text='35', toggle=1)
+        D_36 = row.prop(mytool, 'D_36', text='36', toggle=1)
+        D_37 = row.prop(mytool, 'D_37', text='37', toggle=1)
+        D_38 = row.prop(mytool, 'D_38', text='38', toggle=1)
         row = self.layout.row(align=True)
         sort_teeth = row.operator('mesh.sort_teeth', text='Sort Teeth')
+
+        # change local Frame orientation buttons
+        row = self.layout.row(align=True)
+        draw_annotate = row.operator('mesh.draw_annotate', text='', icon='GREASEPENCIL')
+        generate_coordinate = row.operator('mesh.generate_coordinate', text='', icon='OUTLINER_OB_EMPTY')
+        applyOrientation = row.operator('mesh.apply_orientation', text='', icon='CHECKMARK')
+        changeOrientation = row.operator('mesh.change_local_orientation', text='', icon='ORIENTATION_GIMBAL')
+        filp_z_orientation = row.operator('mesh.filp_z_orientation', text='', icon='MOD_TRIANGULATE')
+        # separator bar
+
 
         # draw emboss region curve
         row = self.layout.row(align=True)
