@@ -263,8 +263,8 @@ class MyProperties(bpy.types.PropertyGroup):
     down_teeth_object_name : bpy.props.StringProperty(name="")
     trim_cut_object_name : bpy.props.StringProperty(name="")
     tooth_name : bpy.props.StringProperty(name="")
-    U_curve_collection_name : bpy.props.StringProperty(name="")
-    D_curve_collection_name : bpy.props.StringProperty(name="")
+    curve_collection_name_U : bpy.props.StringProperty(name="")
+    curve_collection_name_D : bpy.props.StringProperty(name="")
 
     up_down : bpy.props.EnumProperty(
         name="UP/DOWN",
@@ -318,6 +318,42 @@ class MyProperties(bpy.types.PropertyGroup):
                 min=1.0, max=1.3, 
                 soft_min=1.0, soft_max=1.3, 
                 step=0.01)
+
+    U_28: bpy.props.BoolProperty(name="28", description="Lost Tooth 28", default=False)
+    U_27: bpy.props.BoolProperty(name="27", description="Lost Tooth 27", default=False)
+    U_26: bpy.props.BoolProperty(name="26", description="Lost Tooth 26", default=False)
+    U_25: bpy.props.BoolProperty(name="25", description="Lost Tooth 25", default=False)
+    U_24: bpy.props.BoolProperty(name="24", description="Lost Tooth 24", default=False)
+    U_23: bpy.props.BoolProperty(name="23", description="Lost Tooth 23", default=False)
+    U_22: bpy.props.BoolProperty(name="22", description="Lost Tooth 22", default=False)
+    U_21: bpy.props.BoolProperty(name="21", description="Lost Tooth 21", default=False)
+    U_18: bpy.props.BoolProperty(name="18", description="Lost Tooth 18", default=False)
+    U_17: bpy.props.BoolProperty(name="17", description="Lost Tooth 17", default=False)
+    U_16: bpy.props.BoolProperty(name="16", description="Lost Tooth 16", default=False)
+    U_15: bpy.props.BoolProperty(name="15", description="Lost Tooth 15", default=False)
+    U_14: bpy.props.BoolProperty(name="14", description="Lost Tooth 14", default=False)
+    U_13: bpy.props.BoolProperty(name="13", description="Lost Tooth 13", default=False)
+    U_13: bpy.props.BoolProperty(name="13", description="Lost Tooth 13", default=False)
+    U_12: bpy.props.BoolProperty(name="12", description="Lost Tooth 12", default=False)
+    U_11: bpy.props.BoolProperty(name="11", description="Lost Tooth 11", default=False)
+
+    D_38: bpy.props.BoolProperty(name="38", description="Lost Tooth 38", default=False)
+    D_37: bpy.props.BoolProperty(name="37", description="Lost Tooth 37", default=False)
+    D_36: bpy.props.BoolProperty(name="36", description="Lost Tooth 36", default=False)
+    D_35: bpy.props.BoolProperty(name="35", description="Lost Tooth 35", default=False)
+    D_34: bpy.props.BoolProperty(name="34", description="Lost Tooth 34", default=False)
+    D_33: bpy.props.BoolProperty(name="33", description="Lost Tooth 33", default=False)
+    D_32: bpy.props.BoolProperty(name="32", description="Lost Tooth 32", default=False)
+    D_31: bpy.props.BoolProperty(name="31", description="Lost Tooth 31", default=False)
+    D_48: bpy.props.BoolProperty(name="48", description="Lost Tooth 48", default=False)
+    D_47: bpy.props.BoolProperty(name="47", description="Lost Tooth 47", default=False)
+    D_46: bpy.props.BoolProperty(name="46", description="Lost Tooth 46", default=False)
+    D_45: bpy.props.BoolProperty(name="45", description="Lost Tooth 45", default=False)
+    D_44: bpy.props.BoolProperty(name="44", description="Lost Tooth 44", default=False)
+    D_43: bpy.props.BoolProperty(name="43", description="Lost Tooth 43", default=False)
+    D_43: bpy.props.BoolProperty(name="43", description="Lost Tooth 43", default=False)
+    D_42: bpy.props.BoolProperty(name="42", description="Lost Tooth 42", default=False)
+    D_41: bpy.props.BoolProperty(name="41", description="Lost Tooth 41", default=False)
 
 class MESH_TO_ready_seperate_teeth(bpy.types.Operator):
     """Read for seperating teeth"""
@@ -1051,13 +1087,13 @@ class MESH_TO_smooth_tooth_edge(bpy.types.Operator):
                     curves_coll = bpy.data.collections.new('Curves_U')
                     context.scene.collection.children.link(curves_coll)
                 curves_collection = bpy.data.collections['Curves_U']
-                mytool.U_curve_collection_name = 'Curves_U'
+                mytool.curve_collection_name_U = 'Curves_U'
             else:
                 if not bpy.data.collections.get('Curves_D'):
                     curves_coll = bpy.data.collections.new('Curves_D')
                     context.scene.collection.children.link(curves_coll)
                 curves_collection = bpy.data.collections['Curves_D']
-                mytool.D_curve_collection_name = 'Curves_D'
+                mytool.curve_collection_name_D = 'Curves_D'
 
             # remove extra vertices and faces
             for obj in context.collection.objects:
@@ -1122,13 +1158,13 @@ class MESH_TO_draw_line(bpy.types.Operator):
 
         if len(bpy.context.selected_objects) == 1:
             if bpy.context.object.name == mytool.up_teeth_object_name:
-                curve_collection = bpy.data.collections[mytool.U_curve_collection_name]
+                curve_collection = bpy.data.collections[mytool.curve_collection_name_U]
                 prefix = 'Curve_U_'
                 mian_obj = bpy.context.object
                 bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
 
             elif bpy.context.object.name == mytool.down_teeth_object_name:
-                curve_collection = bpy.data.collections[mytool.D_curve_collection_name]
+                curve_collection = bpy.data.collections[mytool.curve_collection_name_D]
                 prefix = 'Curve_D_'
                 mian_obj = bpy.context.object
                 bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
@@ -2741,6 +2777,7 @@ class MESH_TO_apply_emboss(bpy.types.Operator):
                 mat.metallic = 0.077
                 mat.roughness = 0.234
             bpy.context.object.data.materials.append(mat)
+            bpy.ops.ed.undo_push()
         return {'FINISHED'}
 
 class MESH_TO_show_teeth(bpy.types.Operator):
@@ -2759,6 +2796,7 @@ class MESH_TO_show_teeth(bpy.types.Operator):
         for obj in context.collection.objects:
             if obj.name.endswith('_') and obj.name.startswith('Tooth'):
                 obj.hide_set(False)
+        bpy.ops.ed.undo_push()
         return {'FINISHED'}
 
 class MESH_TO_hide_teeth(bpy.types.Operator):
@@ -2777,6 +2815,17 @@ class MESH_TO_hide_teeth(bpy.types.Operator):
         for obj in context.collection.objects:
             if obj.name.endswith('_') and obj.name.startswith('Tooth'):
                 obj.hide_set(True)
+        bpy.ops.ed.undo_push()
+        return {'FINISHED'}
+
+class MESH_TO_sort_teeth(bpy.types.Operator):
+    """"Sort Teeth"""
+    bl_idname = "mesh.sort_teeth"
+    bl_label = "Sort Teeth"
+
+    def execute(self, context):
+        filename = "C:\\Users\\HuaFei\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\sort_teeth.py" 
+        exec(compile(open(filename).read(), filename, 'exec'))
         return {'FINISHED'}
 
 class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
@@ -2812,7 +2861,7 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         apply_bas = row.operator('mesh.apply_base', text='', icon='CHECKMARK')
         row = self.layout.row(align=True)
         seperate_teeth = row.operator('mesh.seperate_teeth', text='Seperate Teeth')
-        
+
         self.layout.separator()
         # smooth tooth edge button
         row = self.layout.row(align=True)
@@ -2850,6 +2899,42 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         filp_z_orientation = row.operator('mesh.filp_z_orientation', text='', icon='MOD_TRIANGULATE')
         # separator bar
         self.layout.separator()
+        row = self.layout.row(align=True)
+        U_18 = row.prop(mytool, 'U_18', text='18', toggle=1)
+        U_17 = row.prop(mytool, 'U_17', text='17', toggle=1)
+        U_16 = row.prop(mytool, 'U_16', text='16', toggle=1)
+        U_15 = row.prop(mytool, 'U_15', text='15', toggle=1)
+        U_14 = row.prop(mytool, 'U_14', text='14', toggle=1)
+        U_13 = row.prop(mytool, 'U_13', text='13', toggle=1)
+        U_12 = row.prop(mytool, 'U_12', text='12', toggle=1)
+        U_11 = row.prop(mytool, 'U_11', text='11', toggle=1)
+        U_21 = row.prop(mytool, 'U_21', text='21', toggle=1)
+        U_22 = row.prop(mytool, 'U_22', text='22', toggle=1)
+        U_23 = row.prop(mytool, 'U_23', text='23', toggle=1)
+        U_24 = row.prop(mytool, 'U_24', text='24', toggle=1)
+        U_25 = row.prop(mytool, 'U_25', text='25', toggle=1)
+        U_26 = row.prop(mytool, 'U_26', text='26', toggle=1)
+        U_27 = row.prop(mytool, 'U_27', text='27', toggle=1)
+        U_28 = row.prop(mytool, 'U_28', text='28', toggle=1)
+        row = self.layout.row(align=True)
+        D_38 = row.prop(mytool, 'D_38', text='38', toggle=1)
+        D_37 = row.prop(mytool, 'D_37', text='37', toggle=1)
+        D_36 = row.prop(mytool, 'D_36', text='36', toggle=1)
+        D_35 = row.prop(mytool, 'D_35', text='35', toggle=1)
+        D_34 = row.prop(mytool, 'D_34', text='34', toggle=1)
+        D_33 = row.prop(mytool, 'D_33', text='33', toggle=1)
+        D_32 = row.prop(mytool, 'D_32', text='32', toggle=1)
+        D_31 = row.prop(mytool, 'D_31', text='31', toggle=1)
+        D_41 = row.prop(mytool, 'D_41', text='41', toggle=1)
+        D_42 = row.prop(mytool, 'D_42', text='42', toggle=1)
+        D_43 = row.prop(mytool, 'D_43', text='43', toggle=1)
+        D_44 = row.prop(mytool, 'D_44', text='44', toggle=1)
+        D_45 = row.prop(mytool, 'D_45', text='45', toggle=1)
+        D_46 = row.prop(mytool, 'D_46', text='46', toggle=1)
+        D_47 = row.prop(mytool, 'D_47', text='47', toggle=1)
+        D_48 = row.prop(mytool, 'D_48', text='48', toggle=1)
+        row = self.layout.row(align=True)
+        sort_teeth = row.operator('mesh.sort_teeth', text='Sort Teeth')
 
         # draw emboss region curve
         row = self.layout.row(align=True)
@@ -3061,6 +3146,7 @@ classes = [MESH_TO_smooth_tooth_edge,
     VIEW3D_PT_reload_blend,
     MESH_TO_ready_seperate_teeth,
     MESH_TO_seperate_Teeth,
+    MESH_TO_sort_teeth,
 ]
 
 def register():
