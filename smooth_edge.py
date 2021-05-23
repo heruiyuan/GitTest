@@ -275,6 +275,25 @@ class MyProperties(bpy.types.PropertyGroup):
         ]
     )
 
+    quantity_of_teeth : bpy.props.EnumProperty(
+        name="Quantity",
+        description="Set the quantity of teeth",
+        items=[
+            ('16', '16', '16'),
+            ('15', '15', '15'),
+            ('14', '14', '14'),
+            ('13', '13', '13'),
+            ('12', '12', '12'),
+            ('11', '11', '11'),
+            ('10', '10', '10'),
+            ('9', '9', '9'),
+            ('8', '8', '8'),
+            ('7', '7', '7'),
+            ('6', '6', '6'),
+            ('5', '5', '5'),
+        ]
+    )
+
     save_as_name:bpy.props.EnumProperty(
         name="Save Name",
         description="Save blender file with this name",
@@ -300,6 +319,26 @@ class MyProperties(bpy.types.PropertyGroup):
                 soft_min=1.0, soft_max=1.3, 
                 step=0.01)
 
+class MESH_TO_ready_seperate_teeth(bpy.types.Operator):
+    """Read for seperating teeth"""
+    bl_idname = "mesh.ready_seperating"
+    bl_label = "Read Seperating"
+
+    def execute(self, context):
+        filename = "C:\\Users\\HuaFei\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\prepare_tooth_seperation.py" 
+        exec(compile(open(filename).read(), filename, 'exec'))
+        return {'FINISHED'} 
+        
+class MESH_TO_seperate_Teeth(bpy.types.Operator):
+    """Seperate Teeth"""
+    bl_idname = "mesh.seperate_teeth"
+    bl_label = "Seperate Teeth"
+
+    def execute(self, context):
+        filename = "C:\\Users\\HuaFei\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\tooth_seperation.py" 
+        exec(compile(open(filename).read(), filename, 'exec'))
+        return {'FINISHED'} 
+    
 class MESH_TO_draw_arch(bpy.types.Operator):
     """Draw Arch Cut Thread"""
     bl_idname = "mesh.draw_arch"
@@ -2752,7 +2791,14 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
 
         # up or down property button
         row = self.layout.row(align=True)
-        up_donw = row.prop(mytool,"up_down")
+        import_stl = row.operator('import_mesh.stl', text='Import STL')
+        row = self.layout.row(align=True)
+        ready_seperating = row.operator('mesh.ready_seperating', text='Read For Seperating')
+        row = self.layout.row(align=True)
+        up_donw = row.prop(mytool,'up_down', text='Up/Down')
+        row = self.layout.row(align=True)
+        quantity_of_teeth = row.prop(mytool, 'quantity_of_teeth', text='Quantity')
+
         # Trim tool and arch cut
         row = self.layout.row(align=True)
         draw_arch = row.operator('mesh.draw_arch', text='Draw Arch', icon='SEQ_LUMA_WAVEFORM')
@@ -2764,6 +2810,10 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         move_up = row.operator('mesh.move_up', text='', icon='SORT_DESC')
         move_down = row.operator('mesh.move_down', text='', icon='SORT_ASC')
         apply_bas = row.operator('mesh.apply_base', text='', icon='CHECKMARK')
+        row = self.layout.row(align=True)
+        seperate_teeth = row.operator('mesh.seperate_teeth', text='Seperate Teeth')
+        
+        self.layout.separator()
         # smooth tooth edge button
         row = self.layout.row(align=True)
         smooth_tooth_edge = row.operator('mesh.smooth_tooth_edge', text='Smooth Edge', icon='VIS_SEL_01')
@@ -2818,6 +2868,8 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         emboss_image = row.operator('mesh.emboss_image', text='Emboss')
         apply_emboss = row.operator('mesh.apply_emboss', text='', icon='CHECKMARK')
 
+
+
 def exec_read_global_peremeter(commend,key):
     _locals = locals()
     exec(commend,globals(),_locals)
@@ -2825,7 +2877,7 @@ def exec_read_global_peremeter(commend,key):
         return _locals[key]
     return commend
  
-#DSC sort 
+#DSC sort
 def compare(A, B):
     numA=int(re.split("[_.]",A)[1])
     numB=int(re.split("[_.]",B)[1])
@@ -3006,7 +3058,9 @@ classes = [MESH_TO_smooth_tooth_edge,
     SCENE_AUTO_save_blend,
     SCENE_AUTO_open_blend,
     BlendFileProperties,
-    VIEW3D_PT_reload_blend
+    VIEW3D_PT_reload_blend,
+    MESH_TO_ready_seperate_teeth,
+    MESH_TO_seperate_Teeth,
 ]
 
 def register():
