@@ -2152,7 +2152,7 @@ class MESH_TO_change_local_orientation(bpy.types.Operator):
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
 
         if len(context.selected_objects) == 1:
-            coord_name = context.object.name + '_coordinate'
+            coord_name = '_' + context.object.name + '_coordinate'
             context.collection.objects[coord_name].hide_set(False)
             bpy.ops.object.select_all(action='DESELECT')
             context.view_layer.objects.active = context.collection.objects[coord_name]
@@ -2181,6 +2181,7 @@ class MESH_TO_apply_orientation(bpy.types.Operator):
 
         if len(context.selected_objects) and context.object.name.endswith('_coordinate'):
             tooth_name = context.object.name.rstrip('_coordinate')
+            tooth_name = tooth_name.lstrip('_')
             tooth_object = context.collection.objects[tooth_name]
             coord_object = context.object
             context.view_layer.objects.active = tooth_object
@@ -2243,7 +2244,7 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
 
         bpy.ops.object.select_all(action='DESELECT')
         for obj in context.collection.objects:
-            if obj.name.endswith('_'):
+            if obj.name.startswith('Tooth'):
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
                 origin = mathutils.Vector((0, 0, 0))
@@ -2263,7 +2264,8 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
 
         for obj in context.collection.objects:
             if obj.name.endswith('.001'):
-                tooth_name = obj.name.rstrip('.001')
+                tooth_name = obj.name.split('.')[0]
+                print(obj.name, tooth_name)
                 tooth_object = context.collection.objects[tooth_name]
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
@@ -2273,6 +2275,7 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
                 bpy.ops.mesh.dissolve_degenerate(threshold=0.05)
                 bpy.ops.mesh.unsubdivide()
                 bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.ops.object.select_all(action='DESELECT')
 
                 bpy.ops.object.modifier_add(type='SUBSURF')
                 bpy.context.object.modifiers["Subdivision"].levels = 2
@@ -2291,8 +2294,8 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
                 bpy.context.object.modifiers["Smooth"].show_on_cage = True
                 bpy.context.object.modifiers["Smooth"].factor = 0.5
 
-                obj.data.name = tooth_name + 'curve'
-                obj.name = tooth_name + 'curve'
+                obj.data.name = tooth_name + '_curve'
+                obj.name = tooth_name + '_curve'
                 obj.select_set(False)
 
         for obj in context.collection.objects:
@@ -2333,8 +2336,8 @@ class MESH_TO_draw_region_curve(bpy.types.Operator):
 
             bpy.ops.mesh.primitive_vert_add()
 
-            bpy.context.object.name = tooth_object.name + 'curve'
-            bpy.context.object.data.name = tooth_object.name + 'curve'
+            bpy.context.object.name = tooth_object.name + '_curve'
+            bpy.context.object.data.name = tooth_object.name + '_curve'
 
             bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(1, 0, 0), "orient_type":'VIEW',  "orient_matrix_type":'VIEW', "constraint_axis":(True, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
 
@@ -2389,10 +2392,9 @@ class MESH_TO_apply_curve(bpy.types.Operator):
             selected_obejcts_list = context.selected_objects.copy()
             bpy.ops.object.select_all(action='DESELECT')
             for obj in selected_obejcts_list:
-                # if obj.name == 'Tooth_U_5_curve':
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
-                tooth_object_name = obj.name.rstrip('curve')
+                tooth_object_name = obj.name.rstrip('_curve')
                 tooth_object = context.collection.objects[tooth_object_name]
                 
                 curve_object = context.object
@@ -2478,8 +2480,8 @@ class MESH_TO_apply_curve(bpy.types.Operator):
 
                 panel_name = tooth_object_name + '.001'
                 panel_object = bpy.data.objects[panel_name]
-                panel_object.data.name =  tooth_object_name + 'panel'
-                panel_object.name = tooth_object_name + 'panel'
+                panel_object.data.name =  tooth_object_name + '_panel'
+                panel_object.name = tooth_object_name + '_panel'
 
             bpy.context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
             bpy.context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
@@ -2499,7 +2501,7 @@ class MESH_TO_exturde_emboss_panel(bpy.types.Operator):
         mytool = scene.my_tool
 
         # thicken panel
-        if len(context.selected_objects) == 1 and context.object.name.endswith('panel'):
+        if len(context.selected_objects) == 1 and context.object.name.endswith('_panel'):
             panel_object = context.object
             bpy.ops.object.mode_set(mode='EDIT')
             bpy.ops.mesh.select_all(action='DESELECT')
