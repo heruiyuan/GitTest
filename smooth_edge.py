@@ -2294,12 +2294,12 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
                 bpy.context.object.modifiers["Smooth"].show_on_cage = True
                 bpy.context.object.modifiers["Smooth"].factor = 0.5
 
-                obj.data.name = tooth_name + '_curve'
-                obj.name = tooth_name + '_curve'
+                obj.data.name = 'curve_' + tooth_name
+                obj.name = 'curve_' + tooth_name
                 obj.select_set(False)
 
         for obj in context.collection.objects:
-            if obj.name.endswith('_curve'):
+            if obj.name.startswith('curve'):
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
         bpy.ops.object.mode_set(mode='EDIT')
@@ -2336,8 +2336,8 @@ class MESH_TO_draw_region_curve(bpy.types.Operator):
 
             bpy.ops.mesh.primitive_vert_add()
 
-            bpy.context.object.name = tooth_object.name + '_curve'
-            bpy.context.object.data.name = tooth_object.name + '_curve'
+            bpy.context.object.name = 'curve_' + tooth_object.name
+            bpy.context.object.data.name = 'curve_' + tooth_object.name
 
             bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(1, 0, 0), "orient_type":'VIEW',  "orient_matrix_type":'VIEW', "constraint_axis":(True, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
 
@@ -2394,7 +2394,7 @@ class MESH_TO_apply_curve(bpy.types.Operator):
             for obj in selected_obejcts_list:
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
-                tooth_object_name = obj.name.rstrip('_curve')
+                tooth_object_name = obj.name.lstrip('curve_')
                 tooth_object = context.collection.objects[tooth_object_name]
                 
                 curve_object = context.object
@@ -2480,8 +2480,8 @@ class MESH_TO_apply_curve(bpy.types.Operator):
 
                 panel_name = tooth_object_name + '.001'
                 panel_object = bpy.data.objects[panel_name]
-                panel_object.data.name =  tooth_object_name + '_panel'
-                panel_object.name = tooth_object_name + '_panel'
+                panel_object.data.name = 'panel_' + tooth_object_name
+                panel_object.name = 'panel_' + tooth_object_name
 
             bpy.context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
             bpy.context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
@@ -2501,7 +2501,7 @@ class MESH_TO_exturde_emboss_panel(bpy.types.Operator):
         mytool = scene.my_tool
 
         # thicken panel
-        if len(context.selected_objects) == 1 and context.object.name.endswith('_panel'):
+        if len(context.selected_objects) == 1 and context.object.name.startswith('panel_'):
             panel_object = context.object
             bpy.ops.object.mode_set(mode='EDIT')
             bpy.ops.mesh.select_all(action='DESELECT')
@@ -2797,7 +2797,7 @@ class MESH_TO_show_teeth(bpy.types.Operator):
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
         
         for obj in context.collection.objects:
-            if obj.name.endswith('_') and obj.name.startswith('Tooth'):
+            if obj.name.startswith('Tooth'):
                 obj.hide_set(False)
         bpy.ops.ed.undo_push()
         return {'FINISHED'}
@@ -2816,7 +2816,7 @@ class MESH_TO_hide_teeth(bpy.types.Operator):
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
         
         for obj in context.collection.objects:
-            if obj.name.endswith('_') and obj.name.startswith('Tooth'):
+            if obj.name.startswith('Tooth'):
                 obj.hide_set(True)
         bpy.ops.ed.undo_push()
         return {'FINISHED'}
