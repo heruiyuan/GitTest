@@ -371,7 +371,7 @@ class MESH_TO_seperate_Teeth(bpy.types.Operator):
     bl_label = "Seperate Teeth"
 
     def execute(self, context):
-        filename = "C:\\Users\\HuaFei\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\tooth_seperation.py" 
+        filename = os.path.expanduser('~') + "\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\tooth_seperation.py" 
         exec(compile(open(filename).read(), filename, 'exec'))
         return {'FINISHED'} 
     
@@ -2827,7 +2827,7 @@ class MESH_TO_sort_teeth(bpy.types.Operator):
     bl_label = "Sort Teeth"
 
     def execute(self, context):
-        filename = "C:\\Users\\HuaFei\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\sort_teeth.py" 
+        filename = os.path.expanduser('~')+"\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\sort_teeth.py" 
         exec(compile(open(filename).read(), filename, 'exec'))
         return {'FINISHED'}
 
