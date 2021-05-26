@@ -1299,9 +1299,11 @@ class MESH_TO_sort_curve(bpy.types.Operator):
                 self.report({'ERROR'}, error_message)
             bpy.ops.mesh.select_all(action='DESELECT')
             bpy.ops.object.mode_set(mode='OBJECT')
+            curve_obj.show_name = True
             curve_obj.data.name = str(index)
             curve_obj.name = str(index)
             curve_obj.pass_index = index
+
 
         bpy.ops.ed.undo_push()
 
@@ -2846,6 +2848,28 @@ class MESH_TO_pick_tooth(bpy.types.Operator):
             context.object.data.name = 'pick_' + context.object.data.name
             context.object.name = 'pick_' + context.object.name
             context.object.hide_set(True)
+            bpy.ops.ed.undo_push()
+
+        return {'FINISHED'}
+
+class MESH_TO_complement_tooth_bottom(bpy.types.Operator):
+    """"Complement Teeth Bottom"""
+    bl_idname = "mesh.complement_teet_bottom"
+    bl_label = "complement Teeth Bottom"
+
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.my_tool
+
+        if mytool.up_down == 'UP_':
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
+        else:
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
+
+        filename = os.path.expanduser('~') + "\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\\zhangzechu\\fillToothHole.py" 
+        exec(compile(open(filename).read(), filename, 'exec'))
+
+        bpy.ops.ed.undo_push()
 
         return {'FINISHED'}
 
@@ -2912,7 +2936,7 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         row = self.layout.row(align=True)
         knifePanel = row.operator('mesh.knife_panel', text='Knife Panel', icon='MOD_OFFSET')
         cutTeeth = row.operator('mesh.cut_teeth', text='Cut Teeth', icon='SCULPTMODE_HLT')
-        
+        # separator bar
         self.layout.separator()
         row = self.layout.row(align=True)
         U_18 = row.prop(mytool, 'U_18', text='18', toggle=1)
@@ -2960,7 +2984,9 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         applyOrientation = row.operator('mesh.apply_orientation', text='', icon='CHECKMARK')
         changeOrientation = row.operator('mesh.change_local_orientation', text='', icon='ORIENTATION_GIMBAL')
         filp_z_orientation = row.operator('mesh.filp_z_orientation', text='', icon='MOD_TRIANGULATE')
-        # separator bar
+        row = self.layout.row(align=True)
+        complement_teeth_bottom = row.operator('mesh.complement_teet_bottom', text='Complement Bottom')
+
 
         # draw emboss region curve
         row = self.layout.row(align=True)
@@ -2978,7 +3004,6 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         smooth_edge = row.operator('mesh.smooth_panel_edge', text='Smooth Edge')
         emboss_image = row.operator('mesh.emboss_image', text='Emboss')
         apply_emboss = row.operator('mesh.apply_emboss', text='', icon='CHECKMARK')
-
 
 def exec_read_global_peremeter(commend,key):
     _locals = locals()
@@ -3173,6 +3198,7 @@ classes = [MESH_TO_smooth_tooth_edge,
     MESH_TO_seperate_Teeth,
     MESH_TO_sort_teeth,
     MESH_TO_pick_tooth,
+    MESH_TO_complement_tooth_bottom,
 ]
 
 def register():
