@@ -2608,7 +2608,7 @@ class MESH_TO_emboss_image(bpy.types.Operator):
         mytool = scene.my_tool
 
         if len(context.selected_objects) == 1:
-            if context.object.name.endswith('panel'):
+            if context.object.name.startswith('panel') and not (context.object.name.endswith('.001')):
                 panel_object = context.object
                 if len(panel_object.vertex_groups) != 0:
                     bpy.ops.object.vertex_group_remove(all=False, all_unlocked=False)
@@ -2684,6 +2684,7 @@ class MESH_TO_emboss_image(bpy.types.Operator):
                 panel_object.vertex_groups.active = panel_object.vertex_groups['panel']
                 bpy.ops.object.vertex_group_select()
                 bpy.ops.object.vertex_group_remove()
+                bpy.ops.mesh.select_linked(delimit=set())
 
                 bpy.ops.mesh.delete(type='VERT')
                 bpy.ops.mesh.select_all(action='DESELECT')
@@ -2696,7 +2697,6 @@ class MESH_TO_emboss_image(bpy.types.Operator):
                 bpy.ops.mesh.subdivide()
                 bpy.ops.object.vertex_group_assign()
 
-                
                 bpy.ops.object.mode_set(mode='OBJECT')
 
                 panel_object.modifiers.new(name='Displace', type='DISPLACE')
@@ -2707,13 +2707,17 @@ class MESH_TO_emboss_image(bpy.types.Operator):
                 panel_object.modifiers["Displace"].texture_coords = 'LOCAL'
                 panel_object.modifiers["Displace"].space = 'LOCAL'
 
-                bpy.ops.image.open(filepath="Grid_Pic\\23-1.jpg", 
-                    directory="C:\\Users\\Huafei\Desktop\\BezierCurve\\Grid_Pic", 
-                    files=[{"name":"23-1.jpg", "name":"23-1.jpg"}], 
+                image_name = 'Grid_pic\\' + bpy.context.object.name.split('_')[2] + '-1.jpg'
+                file_name = bpy.context.object.name.split('_')[2] + '-1.jpg'
+                image_file_path = os.path.expanduser('~') +'\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\config\\Grid_Pic'
+                bpy.ops.image.open(filepath=image_name, 
+                    directory=image_file_path, 
+                    files=[{"name":file_name, "name":file_name}], 
                     relative_path=True, 
                     show_multiview=False)
-                img = bpy.data.images['23-1.jpg']
-                
+                    
+                img = bpy.data.images[file_name]
+
                 if not bpy.data.textures :
                     bpy.ops.texture.new()           
                     bpy.data.textures['Texture'].image = img
@@ -2729,6 +2733,7 @@ class MESH_TO_emboss_image(bpy.types.Operator):
                     bpy.data.textures["Texture"].factor_blue = 1.5
 
                 texture = bpy.data.textures['Texture']
+                texture.image = img
                 panel_object.modifiers['Displace'].texture = texture    
 
                 bpy.context.scene.tool_settings.use_transform_data_origin = True
@@ -2746,7 +2751,7 @@ class MESH_TO_apply_emboss(bpy.types.Operator):
     bl_label = "Apply Emboss"
     
     def execute(self, context):
-        if len(context.selected_objects) == 1 and context.object.name.endswith('panel'):
+        if len(context.selected_objects) == 1 and context.object.name.startswith('panel'):
             context.space_data.show_gizmo_object_translate = False
             context.space_data.show_gizmo_object_rotate = False
             context.scene.tool_settings.use_transform_data_origin = False
@@ -2959,7 +2964,6 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         smooth_edge = row.operator('mesh.smooth_panel_edge', text='Smooth Edge')
         emboss_image = row.operator('mesh.emboss_image', text='Emboss')
         apply_emboss = row.operator('mesh.apply_emboss', text='', icon='CHECKMARK')
-
 
 
 def exec_read_global_peremeter(commend,key):
