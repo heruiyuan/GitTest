@@ -2715,7 +2715,7 @@ class MESH_TO_emboss_image(bpy.types.Operator):
                     files=[{"name":file_name, "name":file_name}], 
                     relative_path=True, 
                     show_multiview=False)
-                    
+
                 img = bpy.data.images[file_name]
 
                 if not bpy.data.textures :
@@ -2836,6 +2836,20 @@ class MESH_TO_sort_teeth(bpy.types.Operator):
         exec(compile(open(filename).read(), filename, 'exec'))
         return {'FINISHED'}
 
+class MESH_TO_pick_tooth(bpy.types.Operator):
+    """"Pick A Select Tooth Out"""
+    bl_idname = "mesh.pick_tooth"
+    bl_label = "Pick A Tooth"
+
+    def execute(self, context):
+        if len(context.selected_objects) == 1 and context.selected_objects[0].name.startswith('Tooth'):
+            context.object.data.name = 'pick_' + context.object.data.name
+            context.object.name = 'pick_' + context.object.name
+            context.object.hide_set(True)
+
+        return {'FINISHED'}
+
+
 class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -2937,6 +2951,7 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         D_38 = row.prop(mytool, 'D_38', text='38', toggle=1)
         row = self.layout.row(align=True)
         sort_teeth = row.operator('mesh.sort_teeth', text='Sort Teeth')
+        pick_tooth = row.operator('mesh.pick_tooth', text='Pick Tooth')
 
         # change local Frame orientation buttons
         row = self.layout.row(align=True)
@@ -2946,7 +2961,6 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         changeOrientation = row.operator('mesh.change_local_orientation', text='', icon='ORIENTATION_GIMBAL')
         filp_z_orientation = row.operator('mesh.filp_z_orientation', text='', icon='MOD_TRIANGULATE')
         # separator bar
-
 
         # draw emboss region curve
         row = self.layout.row(align=True)
@@ -3158,6 +3172,7 @@ classes = [MESH_TO_smooth_tooth_edge,
     MESH_TO_ready_seperate_teeth,
     MESH_TO_seperate_Teeth,
     MESH_TO_sort_teeth,
+    MESH_TO_pick_tooth,
 ]
 
 def register():
