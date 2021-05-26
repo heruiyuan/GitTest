@@ -23,6 +23,13 @@ import os
 import json
 import getpass
 
+dir = os.path.expanduser('~')+'\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\zhangzechu'
+if not dir in sys.path:
+    sys.path.append(dir)
+
+from fillToothHole import fillSingleToothHole, fill_all_teeth_hide
+
+
 filepath=os.path.expanduser('~')+'/AppData/Roaming/Blender Foundation/Blender/2.83/parameter.json'
 parameterlist=[]
 with open(filepath, 'r') as f:
@@ -2873,6 +2880,9 @@ class MESH_TO_complement_tooth_bottom(bpy.types.Operator):
 
         return {'FINISHED'}
 
+# class MESH_TO_select_three_point(bpy.types.Operator):
+
+
 
 class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
@@ -3121,7 +3131,40 @@ class BlendFileProperties(bpy.types.PropertyGroup):
             ('19', '19', ''),
             ('10', '10', '')
             ]
-    )   
+    )  
+    panel_Tooth_11=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_12=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_13=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_14=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_15=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_16=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_17=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_18=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_21=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_22=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_23=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_24=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_25=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_26=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_27=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_28=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_31=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_32=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_33=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_34=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_35=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_36=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_37=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_38=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_41=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_42=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_43=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_44=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_45=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_46=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_47=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_48=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    
 
 class VIEW3D_PT_reload_blend(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
