@@ -367,7 +367,7 @@ class MESH_TO_ready_seperate_teeth(bpy.types.Operator):
     bl_label = "Read Seperating"
 
     def execute(self, context):
-        filename = "C:\\Users\\HuaFei\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\prepare_tooth_seperation.py" 
+        filename = os.path.expanduser('~') + "\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\prepare_tooth_seperation.py" 
         exec(compile(open(filename).read(), filename, 'exec'))
         return {'FINISHED'} 
         
@@ -2874,8 +2874,9 @@ class MESH_TO_complement_tooth_bottom(bpy.types.Operator):
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
 
-        filename = os.path.expanduser('~') + "\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\\zhangzechu\\fillToothHole.py" 
-        exec(compile(open(filename).read(), filename, 'exec'))
+        fill_all_teeth_hide()
+        # filename = os.path.expanduser('~') + "\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\\zhangzechu\\fillToothHole.py" 
+        # exec(compile(open(filename).read(), filename, 'exec'))
 
         bpy.ops.ed.undo_push()
 
@@ -3058,7 +3059,7 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         smooth_edge = row.operator('mesh.smooth_panel_edge', text='Smooth Edge')
         emboss_image = row.operator('mesh.emboss_image', text='Emboss')
         apply_emboss = row.operator('mesh.apply_emboss', text='', icon='CHECKMARK')
-        row = self.layout.row(align=True)
+        # row = self.layout.row(align=True)
         # put_on_brackets = row.operator('mesh.put_on_brackets', text='Put On Brackets')
 
 
@@ -3212,7 +3213,6 @@ class BlendFileProperties(bpy.types.PropertyGroup):
     panel_Tooth_47 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
     panel_Tooth_48 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
     
-
 class VIEW3D_PT_reload_blend(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
