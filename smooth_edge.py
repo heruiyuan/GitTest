@@ -29,7 +29,6 @@ if not dir in sys.path:
 
 from fillToothHole import fillSingleToothHole, fill_all_teeth_hide
 
-
 filepath=os.path.expanduser('~')+'/AppData/Roaming/Blender Foundation/Blender/2.83/parameter.json'
 parameterlist=[]
 with open(filepath, 'r') as f:
@@ -1945,7 +1944,6 @@ class MESH_TO_cut_teeth(bpy.types.Operator):
             bpy.ops.object.delete(use_global=True, confirm=False)
             message = 'Cut ' + temp_name + ' Tooth Finished!'
             print(message)
-            self.report({'INFO'}, message)
 
         print('Cut All Teeth Finish!!')  
         self.report({'INFO'}, 'OK! Cut All Teeth Finish!')
@@ -2401,6 +2399,7 @@ class MESH_TO_apply_curve(bpy.types.Operator):
             selected_obejcts_list = context.selected_objects.copy()
             bpy.ops.object.select_all(action='DESELECT')
             for obj in selected_obejcts_list:
+                # if obj.name == 'curve_Tooth_22':
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
                 tooth_object_name = obj.name.lstrip('curve_')
@@ -2429,8 +2428,9 @@ class MESH_TO_apply_curve(bpy.types.Operator):
                 bpy.ops.object.modifier_add(type='SHRINKWRAP')
                 bpy.context.object.modifiers["Shrinkwrap"].target = tooth_object
                 bpy.context.object.modifiers["Shrinkwrap"].wrap_mode = 'ABOVE_SURFACE'
-                bpy.context.object.modifiers["Shrinkwrap"].offset = -0.27
-                bpy.ops.object.modifier_add(type='SMOOTH')
+                bpy.context.object.modifiers["Shrinkwrap"].offset = -0.7
+                bpy.ops.object.modifier_add(type='SMOOTH')  
+                bpy.context.object.modifiers["Smooth"].factor = 0.7
                 bpy.context.object.modifiers["Smooth"].iterations = 10
 
                 bpy.ops.object.convert(target='MESH')
@@ -2475,6 +2475,7 @@ class MESH_TO_apply_curve(bpy.types.Operator):
                 tooth_object.vertex_groups.active = tooth_object.vertex_groups['intersect']
                 bpy.ops.object.vertex_group_select()
                 bpy.ops.mesh.loop_to_region()
+                
 
                 if context.object.data.total_vert_sel > 1000:
                     error_message = 'Emboss Panel Selection Error In \'Apply Curve And Generate Emboss Panel\' !'
@@ -2880,9 +2881,52 @@ class MESH_TO_complement_tooth_bottom(bpy.types.Operator):
 
         return {'FINISHED'}
 
-# class MESH_TO_select_three_point(bpy.types.Operator):
+class MESH_TO_put_on_brackets(bpy.types.Operator):
+    """"Put Brackets On Teeth"""
+    bl_idname = "mesh.put_on_brackets"
+    bl_label = "Put On Bracket"
 
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.my_tool
 
+        if mytool.up_down == 'UP_':
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
+        else:
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
+        
+        filespath = os.path.expanduser('~') + "\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\config\\bracker\\new_bracker"
+        if os.path.isdir(filespath):
+            info = os.walk(filespath)
+            for root, dirs, files in info:
+                pass
+        else:
+            self.report({'ERROR'}, 'Brackets Path Error!')
+            return {'CANCELLED'}
+                 
+
+        for panel_obj in context.collection.objects:
+            if panel_obj.name.startswith('panel_'):
+                tooth_number = panel_obj.name.split('_')[2]
+                for file_name in files:
+                    print('bb',tooth_number,file_name)
+                    if file_name.startswith(str(tooth_number)):
+                        print('aa',file_name)
+                        bpy.ops.import_mesh.stl(filepath=(root + '\\' + file_name), 
+                            filter_glob="*.stl", 
+                            files=[{"name":file_name, "name":file_name}], 
+                            directory=root, 
+                            global_scale=1.0, 
+                            use_scene_unit=False, 
+                            use_facet_normal=False, 
+                            axis_forward='Y', axis_up='Z')
+                        # bpy.ops.import_mesh.stl(filepath="C://Users//Dom//Documents//DomCorp.//mymodel.stl", 
+                        #     filter_glob="*.stl",  files=[{"name":"mymodel.stl", "name":"mymodel.stl"}], 
+                        #     directory="C://Users//Dom//Documents//DomCorp.")
+
+        bpy.ops.ed.undo_push()
+
+        return {'FINISHED'}
 
 class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
@@ -3014,6 +3058,9 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         smooth_edge = row.operator('mesh.smooth_panel_edge', text='Smooth Edge')
         emboss_image = row.operator('mesh.emboss_image', text='Emboss')
         apply_emboss = row.operator('mesh.apply_emboss', text='', icon='CHECKMARK')
+        row = self.layout.row(align=True)
+        # put_on_brackets = row.operator('mesh.put_on_brackets', text='Put On Brackets')
+
 
 def exec_read_global_peremeter(commend,key):
     _locals = locals()
@@ -3132,38 +3179,38 @@ class BlendFileProperties(bpy.types.PropertyGroup):
             ('10', '10', '')
             ]
     )  
-    panel_Tooth_11=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_12=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_13=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_14=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_15=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_16=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_17=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_18=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_21=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_22=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_23=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_24=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_25=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_26=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_27=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_28=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_31=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_32=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_33=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_34=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_35=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_36=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_37=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_38=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_41=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_42=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_43=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_44=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_45=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_46=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_47=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
-    panel_Tooth_48=bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_11 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_13 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_12 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_14 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_15 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_16 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_17 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_18 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_21 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_22 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_23 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_24 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_25 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_26 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_27 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_28 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_31 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_32 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_33 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_34 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_35 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_36 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_37 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_38 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_41 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_42 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_43 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_44 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_45 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_46 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_47 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
+    panel_Tooth_48 : bpy.props.FloatVectorProperty(default=(0.0, 0.0, 0.0))
     
 
 class VIEW3D_PT_reload_blend(bpy.types.Panel):
@@ -3242,6 +3289,7 @@ classes = [MESH_TO_smooth_tooth_edge,
     MESH_TO_sort_teeth,
     MESH_TO_pick_tooth,
     MESH_TO_complement_tooth_bottom,
+    MESH_TO_put_on_brackets,
 ]
 
 def register():
