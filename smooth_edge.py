@@ -11,6 +11,7 @@ bl_info = {
     "category": "Mesh",
 }
 from typing import Text
+# from typing_extensions import TypeGuard
 import bpy
 import mathutils
 import math
@@ -23,11 +24,11 @@ import os
 import json
 import getpass
 
-dir = os.path.expanduser('~')+'\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\zhangzechu'
-if not dir in sys.path:
-    sys.path.append(dir)
+# dir = os.path.expanduser('~')+'\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\zhangzechu'
+# if not dir in sys.path:
+#     sys.path.append(dir)
 
-from fillToothHole import fillSingleToothHole, fill_all_teeth_hide
+# from fillToothHole import fillSingleToothHole, fill_all_teeth_hide
 
 filepath=os.path.expanduser('~')+'/AppData/Roaming/Blender Foundation/Blender/2.83/parameter.json'
 parameterlist=[]
@@ -107,7 +108,7 @@ def draw(self, context):
     self.layout.label(text=error_message)
 
 def distance(point1, point2):
-    """Calculate distance bewteen two points """
+    """Calculate distance bewteen two points in 3D space"""
     disp = point1 - point2
     dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1] + disp[2]*disp[2])
     return dis
@@ -2874,9 +2875,130 @@ class MESH_TO_complement_tooth_bottom(bpy.types.Operator):
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
 
-        fill_all_teeth_hide()
-        # filename = os.path.expanduser('~') + "\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\\zhangzechu\\fillToothHole.py" 
-        # exec(compile(open(filename).read(), filename, 'exec'))
+        # fill_all_teeth_hide()
+        bpy.ops.ed.undo_push()
+
+        return {'FINISHED'}
+
+class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
+    """"Automatic Arrange Teeth"""
+    bl_idname = "mesh.automatic_arrange"
+    bl_label = "Automatic Arrage"
+
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.my_tool
+
+        if mytool.up_down == 'UP_':
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
+            curve_name = 'up_arch'
+        else:
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
+            curve_name = 'down_arch'
+        
+        for obj in context.collection.objects:
+            if obj.name.startswith('Tooth'):
+                loca = obj.location
+                scene.cursor.location = loca
+                bpy.ops.mesh.primitive_vert_add()
+                bpy.ops.object.mode_set(mode='OBJECT')
+                context.object.location[2] = 0.0
+                bpy.data.collections['Collection'].objects.link(context.object)
+                context.collection.objects.unlink(context.object)
+
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Collection']        
+        for obj in context.collection.objects: 
+            context.view_layer.objects.active = obj
+            obj.select_set(True)
+        bpy.ops.object.join()
+        
+        dental_arch = context.object
+        dental_arch.data.name = curve_name
+        dental_arch.name = curve_name
+        dental_arch.show_name = True
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.context.tool_settings.mesh_select_mode = (True, False, False)
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mesh.sort_elements(type='VIEW_XAXIS', elements={'VERT'})
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        vertices = context.object.data.vertices
+        for index in range(len(vertices)):
+            if index == len(vertices)-1:
+                break
+            vertices[index].select = True
+            vertices[index+1].select = True
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.edge_face_add()
+            bpy.ops.mesh.select_all(action='DESELECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+        vertices[len(vertices)-1].select = True
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(3.0, 8.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        vertices[0].select = True
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(-3.0, 8.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+        
+        bpy.ops.object.modifier_add(type='SUBSURF')
+        bpy.context.object.modifiers["Subdivision"].levels = 2
+        bpy.context.object.modifiers["Subdivision"].show_on_cage = True
+        
+        bpy.ops.object.modifier_add(type='SMOOTH')
+        bpy.context.object.modifiers["Smooth"].iterations = 10
+        bpy.context.object.modifiers["Smooth"].show_in_editmode = True
+        bpy.context.object.modifiers["Smooth"].show_on_cage = True
+        bpy.context.object.modifiers["Smooth"].factor = 0.5
+
+        bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Subdivision")
+        bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Smooth")
+
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mesh.looptools_space(influence=100, input='selected', interpolation='cubic', lock_x=False, lock_y=False, lock_z=False)
+        bpy.ops.mesh.subdivide()
+        bpy.ops.mesh.sort_elements(type='VIEW_XAXIS', elements={'VERT'})
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
+        context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
+        bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+        bpy.ops.object.select_all(action='DESELECT')
+
+        if mytool.up_down == 'UP_':
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
+        else:
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
+
+        vertices = dental_arch.data.vertices
+
+        for obj in context.collection.objects:
+            if obj.name.startswith('Tooth'):
+                min_dis = 10
+                min_index = 0
+                loca = obj.location
+                x_lcoa = loca[0]
+                for vertice in vertices:
+                    if abs(vertice.co[0] - x_lcoa) < 1:
+                        disp = loca - vertice.co
+                        dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
+                        if dis < min_dis:
+                            min_dis = dis
+                            min_index = vertice.index
+                print(min_dis, min_index, obj.name)
+                vrt_x = vertices[min_index].co[0]  
+                vrt_y = vertices[min_index].co[1]
+                obj.location[0] = vrt_x
+                obj.location[1] = vrt_y
+
+
 
         bpy.ops.ed.undo_push()
 
@@ -2928,7 +3050,7 @@ class MESH_TO_put_on_brackets(bpy.types.Operator):
         bpy.ops.ed.undo_push()
 
         return {'FINISHED'}
-
+    
 class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -3039,6 +3161,7 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         applyOrientation = row.operator('mesh.apply_orientation', text='', icon='CHECKMARK')
         changeOrientation = row.operator('mesh.change_local_orientation', text='', icon='ORIENTATION_GIMBAL')
         filp_z_orientation = row.operator('mesh.filp_z_orientation', text='', icon='MOD_TRIANGULATE')
+        automatic_arrange = row.operator('mesh.automatic_arrange', text='Automatic Arrange')
         row = self.layout.row(align=True)
         complement_teeth_bottom = row.operator('mesh.complement_teet_bottom', text='Complement Bottom')
 
@@ -3059,9 +3182,9 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         smooth_edge = row.operator('mesh.smooth_panel_edge', text='Smooth Edge')
         emboss_image = row.operator('mesh.emboss_image', text='Emboss')
         apply_emboss = row.operator('mesh.apply_emboss', text='', icon='CHECKMARK')
-        # row = self.layout.row(align=True)
-        # put_on_brackets = row.operator('mesh.put_on_brackets', text='Put On Brackets')
-
+        row = self.layout.row(align=True)
+        put_on_brackets = row.operator('mesh.put_on_brackets', text='Put On Brackets')
+    
 
 def exec_read_global_peremeter(commend,key):
     _locals = locals()
@@ -3290,6 +3413,7 @@ classes = [MESH_TO_smooth_tooth_edge,
     MESH_TO_pick_tooth,
     MESH_TO_complement_tooth_bottom,
     MESH_TO_put_on_brackets,
+    MESH_TO_automatic_arrange_teeth,
 ]
 
 def register():
