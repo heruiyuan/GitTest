@@ -1262,18 +1262,24 @@ class MESH_TO_sort_curve(bpy.types.Operator):
                 obj.select_set(True)
                 bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
                 location = obj.location
-                angle = math.atan((-location[0])/location[1])
-
+                
                 if location[1] == 0 and location[0] < 0 :
+                    angle = math.atan((-location[0])/location[1])
                     angle = math.pi / 2
                 elif location[1] == 0 and location[0] > 0:
+                    angle = math.atan((-location[0])/location[1])
                     angle = math.pi + math.pi / 2
                 elif location[0] > 0 and location[1] > 0:
+                    angle = math.atan((-location[0])/location[1])
                     angle = angle + 2 * math.pi
                 elif location[0] > 0 and location[1] < 0:
+                    angle = math.atan((-location[0])/location[1])
                     angle = angle + math.pi
                 elif location[0] < 0 and location[1] < 0:
+                    angle = math.atan((-location[0])/location[1])
                     angle = angle + math.pi
+                else:
+                    angle = math.atan((-location[0])/location[1])
                 # print(obj.name,angle/math.pi*180)
                 z_co_index[index] =  angle                      # store object index in collection                    
                 obj.select_set(False)
@@ -2854,6 +2860,8 @@ class MESH_TO_pick_tooth(bpy.types.Operator):
 
     def execute(self, context):
         if len(context.selected_objects) == 1 and context.selected_objects[0].name.startswith('Tooth'):
+            bpy.data.collections['Collection'].objects.link(context.object)
+            context.collection.objects.unlink(context.object)
             context.object.data.name = 'pick_' + context.object.data.name
             context.object.name = 'pick_' + context.object.name
             context.object.hide_set(True)
@@ -2896,57 +2904,89 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
             curve_name = 'down_arch'
         
-        for obj in context.collection.objects:
+        for idx, obj in enumerate(context.collection.objects):
             if obj.name.startswith('Tooth'):
                 loca = obj.location
                 scene.cursor.location = loca
                 bpy.ops.mesh.primitive_vert_add()
                 bpy.ops.object.mode_set(mode='OBJECT')
+                context.object.data.name = curve_name + '_vert_' + str(idx)
+                context.object.name = curve_name + '_vert_' + str(idx)
                 context.object.location[2] = 0.0
                 bpy.data.collections['Collection'].objects.link(context.object)
                 context.collection.objects.unlink(context.object)
 
+        bpy.ops.object.select_all(action='DESELECT')
         bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Collection']        
         for obj in context.collection.objects: 
-            context.view_layer.objects.active = obj
-            obj.select_set(True)
+            if obj.name.startswith(curve_name):
+                context.view_layer.objects.active = obj
+                obj.select_set(True)
         bpy.ops.object.join()
         
         dental_arch = context.object
         dental_arch.data.name = curve_name
         dental_arch.name = curve_name
         dental_arch.show_name = True
+        context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
+        context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
+        bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
         bpy.ops.object.mode_set(mode='EDIT')
-        bpy.context.tool_settings.mesh_select_mode = (True, False, False)
-        bpy.ops.mesh.select_all(action='SELECT')
-        bpy.ops.mesh.sort_elements(type='VIEW_XAXIS', elements={'VERT'})
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode='OBJECT')
+        
+        vertices = dental_arch.data.vertices
 
-        vertices = context.object.data.vertices
-        for index in range(len(vertices)):
-            if index == len(vertices)-1:
-                break
-            vertices[index].select = True
-            vertices[index+1].select = True
+        angle_inde_dict = dict()
+        for index, vrt in enumerate(vertices):
+            location = vrt.co
+
+            if location[1] == 0 and location[0] < 0 :
+                angle = math.atan((-location[0])/location[1])
+                angle = math.pi / 2
+            elif location[1] == 0 and location[0] > 0:
+                angle = math.atan((-location[0])/location[1])
+                angle = math.pi + math.pi / 2
+            elif location[0] > 0 and location[1] > 0:
+                angle = math.atan((-location[0])/location[1])
+                angle = angle + 2 * math.pi
+            elif location[0] > 0 and location[1] < 0:
+                angle = math.atan((-location[0])/location[1])
+                angle = angle + math.pi
+            elif location[0] < 0 and location[1] < 0:
+                angle = math.atan((-location[0])/location[1])
+                angle = angle + math.pi
+            else:
+                angle = math.atan((-location[0])/location[1])
+            # print(index,angle/math.pi*180)
+            angle_inde_dict[index] =  angle                                         
+        sort_list = sorted(angle_inde_dict.items(), key=lambda item:item[1])
+        # print(sort_list)
+
+        
+        for idx, item in enumerate(sort_list):
+            if idx == len(sort_list)-1:
+                break   
+            vertices[sort_list[idx][0]].select = True
+            vertices[sort_list[idx+1][0]].select = True
+            
             bpy.ops.object.mode_set(mode='EDIT')
             bpy.ops.mesh.edge_face_add()
             bpy.ops.mesh.select_all(action='DESELECT')
             bpy.ops.object.mode_set(mode='OBJECT')
-
-        vertices[len(vertices)-1].select = True
+        end = len(sort_list) - 1
+        start = 0
+        vertices[sort_list[end][0]].select = True
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(3.0, 8.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode='OBJECT')
-        vertices[0].select = True
+        vertices[sort_list[start][0]].select = True
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(-3.0, 8.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode='OBJECT')
 
-        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
-        
         bpy.ops.object.modifier_add(type='SUBSURF')
         bpy.context.object.modifiers["Subdivision"].levels = 2
         bpy.context.object.modifiers["Subdivision"].show_on_cage = True
@@ -2970,13 +3010,18 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
         context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
         context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
         bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+
+        if mytool.up_down == 'UP_':
+            context.object.location[2] = context.object.location[2] - 10
+        else:
+            context.object.location[2] = context.object.location[2] + 10
         bpy.ops.object.select_all(action='DESELECT')
 
         if mytool.up_down == 'UP_':
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
-
+        
         vertices = dental_arch.data.vertices
 
         for obj in context.collection.objects:
@@ -2992,12 +3037,74 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                         if dis < min_dis:
                             min_dis = dis
                             min_index = vertice.index
-                print(min_dis, min_index, obj.name)
                 vrt_x = vertices[min_index].co[0]  
                 vrt_y = vertices[min_index].co[1]
                 obj.location[0] = vrt_x
                 obj.location[1] = vrt_y
 
+                vertices[min_index+1].select = True
+                vertices[min_index-1].select = True
+
+                x1 = vertices[min_index+1].co[0]
+                y1 = vertices[min_index+1].co[1]
+
+                x2 = vertices[min_index-1].co[0]
+                y2 = vertices[min_index-1].co[1]
+                if (x2 - x1) != 0:
+                    k = (y2 - y1) / (x2 - x1)
+                    if k != 0:
+                        k2 = -(1/k)
+                        b2 = vertices[min_index].co[1] - vertices[min_index].co[0]*k2
+                        print('k is :', k, k2, obj.name)
+                        point_x = 0
+                        pooin_y = b2
+                        vector1_x = point_x - vertices[min_index].co[0]
+                        vector1_y = pooin_y - vertices[min_index].co[1]
+                        M = obj.matrix_local.copy()
+                        M = M.to_3x3()
+                        M.invert()
+                        vector2_x = M.row[2][0]
+                        vector2_y = M.row[2][1]
+                        len1 = math.sqrt((vector1_x * vector1_x) + (vector1_y * vector1_y))
+                        len2 = math.sqrt((vector2_x * vector2_x) + (vector2_y * vector2_y))
+                        vector1_x = vector1_x / len1
+                        vector1_y = vector1_y / len1
+                        vector2_x = vector2_x / len2
+                        vector2_y = vector2_y / len2
+                        
+                        dot = vector1_x * vector2_x + vector1_y * vector2_y
+                        theta  = math.acos(dot)
+                        
+                        P_N = vector2_x * vector1_y - vector1_x * vector2_y
+                        if mytool.up_down == 'UP_':
+                            if P_N > 0:
+                                theta = -theta
+                        else:
+                            if P_N < 0:
+                                theta = -theta
+
+                        context.view_layer.objects.active = obj
+                        obj.select_set(True)
+
+                        bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
+                        bpy.ops.transform.create_orientation(name="local_orient", use=True)
+                        orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
+                        orientation_matirx.invert()
+                        print(orientation_matirx)
+                        a = (orientation_matirx.row[0][0], orientation_matirx.row[0][1], orientation_matirx.row[0][2])
+                        b = (orientation_matirx.row[1][0], orientation_matirx.row[1][1], orientation_matirx.row[1][2])
+                        c = (orientation_matirx.row[2][0], orientation_matirx.row[2][1], orientation_matirx.row[2][2])
+                        bpy.ops.transform.delete_orientation()
+
+                        bpy.ops.transform.rotate(value=theta, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+                        bpy.ops.object.select_all(action='DESELECT')
+
+                        print(obj.name,theta/math.pi*180)
+                        print(M, vector1_x, vector1_y)
+                    else:
+                        pass 
+                else:   
+                    pass
 
 
         bpy.ops.ed.undo_push()
@@ -3185,7 +3292,6 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         row = self.layout.row(align=True)
         put_on_brackets = row.operator('mesh.put_on_brackets', text='Put On Brackets')
     
-
 def exec_read_global_peremeter(commend,key):
     _locals = locals()
     exec(commend,globals(),_locals)
