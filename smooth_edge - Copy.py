@@ -232,7 +232,6 @@ def conver_gpencil_to_curve(self, context, pencil, type):
 
     try:
         strokes = bpy.context.annotation_data.layers.active.active_frame.strokes
-        print('hello')
     except:
         error = True
     CurveObject.location = (0.0, 0.0, 0.0)
@@ -241,7 +240,6 @@ def conver_gpencil_to_curve(self, context, pencil, type):
 
     if not error:
         for i, _stroke in enumerate(strokes):
-            print(i)
             stroke_points = strokes[i].points
             data_list = [ (point.co.x, point.co.y, point.co.z)
                             for point in stroke_points ]
@@ -1002,16 +1000,18 @@ class MESH_TO_smooth_tooth_edge(bpy.types.Operator):
             mainObjectName = bpy.context.object.name
             sysGaveName = mainObjectName + '.001'
 
-            bpy.ops.object.editmode_toggle()        # enter 'EDIT_MESH' mode
+            bpy.ops.object.mode_set(mode='EDIT')
             bpy.ops.mesh.select_all(action='DESELECT')
-            bpy.ops.object.editmode_toggle()        # return 'OBJECT' mode
+            bpy.ops.object.mode_set(mode='OBJECT')
 
             context.view_layer.objects.active = bpy.data.objects[mainObjectName]
             bpy.data.objects[mainObjectName].select_set(True)
 
             bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 
-            txtfile = exec_read_global_peremeter(globals()['txtfile'],'txtfile')              
+            # txtfile = exec_read_global_peremeter(globals()['txtfile'],'txtfile')      
+            txtfile = 'C:\\Users\\HuaFei\\Desktop\\ply_data\\C2103191_x0_D_.txt' 
+
             # read index file
             f = open(txtfile,'r')
             arr = f.readlines() 
@@ -1030,14 +1030,15 @@ class MESH_TO_smooth_tooth_edge(bpy.types.Operator):
                     for index in data_index:
                         bpy.data.objects[mainObjectName].data.vertices[index].select = True
     
-                    bpy.ops.object.editmode_toggle()        # enter 'EDIT_MESH' mode 
+                    bpy.ops.object.mode_set(mode='EDIT')        # enter 'EDIT_MESH' mode 
+                    bpy.context.tool_settings.mesh_select_mode = (False, True, False)
                     # get selected tooth outline and store it into vertex group
                     bpy.ops.mesh.region_to_loop()
                     bpy.ops.object.vertex_group_add()
                     bpy.data.objects[mainObjectName].vertex_groups['Group'].name = 'Ori_Outline_' + str(line_index-1)
                     bpy.ops.object.vertex_group_assign()
                     bpy.ops.mesh.select_all(action='DESELECT')
-                    bpy.ops.object.editmode_toggle()        # return 'OBJECT' mode
+                    bpy.ops.object.mode_set(mode='EDIT')
             s_index = ''
             for vertex_group in bpy.data.objects[mainObjectName].vertex_groups:
                 if vertex_group.name.startswith('Ori_Outline_'):
