@@ -10,6 +10,7 @@ bl_info = {
     "tracker_url": "",
     "category": "Mesh",
 }
+import collections
 from typing import Text
 import bpy
 import mathutils
@@ -2305,56 +2306,236 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
             bpy.ops.mesh.select_more()
         bpy.ops.mesh.duplicate(mode=1)
         bpy.ops.mesh.separate(type='SELECTED')
+        bpy.context.tool_settings.mesh_select_mode = (True, False, False)
         bpy.ops.object.mode_set(mode='OBJECT')
         bpy.ops.object.select_all(action='DESELECT')
-        
-        
+                
+        for tooth_name in tooth_obj_name_list:
+            inside_obj_name = tooth_name + '.001'
+            main_obj = context.collection.objects[inside_obj_name]
+    
+            vertices = main_obj.data.vertices
+            bound_box = main_obj.bound_box
 
-        # for obj in context.collection.objects:
-        #     if obj.name.endswith('.001'):
-        #         tooth_name = obj.name.split('.')[0]
-        #         print(obj.name, tooth_name)
-        #         tooth_object = context.collection.objects[tooth_name]
-        #         context.view_layer.objects.active = obj
-        #         obj.select_set(True)
-        #         bpy.ops.object.mode_set(mode='EDIT')
-        #         bpy.context.tool_settings.mesh_select_mode = (True, False, False)
-        #         bpy.ops.mesh.select_all(action='SELECT')
-        #         bpy.ops.mesh.dissolve_degenerate(threshold=0.05)
-        #         bpy.ops.mesh.unsubdivide()
-        #         bpy.ops.object.mode_set(mode='OBJECT')
-        #         bpy.ops.object.select_all(action='DESELECT')
+            # use bound box center as object center
+            half_length_x = abs(bound_box[0][0])
+            half_length_y = abs(bound_box[0][1])
 
-        #         bpy.ops.object.modifier_add(type='SUBSURF')
-        #         bpy.context.object.modifiers["Subdivision"].levels = 2
-        #         bpy.context.object.modifiers["Subdivision"].show_on_cage = True
+            y_co_list = dict()
+            pos_x_co_list = dict()
+            neg_x_co_list = dict()
+            for vrt in vertices:
+                if abs(vrt.co[0]) < 0.2 :
+                    y_co_list[vrt.index] = vrt.co[1]
+                if abs(vrt.co[0] - 0.7 * half_length_x) < 0.2:
+                    pos_x_co_list[vrt.index] = vrt.co[1]
+                if abs(vrt.co[0] - 0.7 * (-half_length_x)) < 0.2:
+                    neg_x_co_list[vrt.index] = vrt.co[1]
+            sorted_list = sorted(y_co_list.items(), key=lambda item:item[1], reverse=True)
+            sorted_list_pos = sorted(pos_x_co_list.items(), key=lambda item:item[1], reverse=True)
+            sorted_list_neg = sorted(neg_x_co_list.items(), key=lambda item:item[1], reverse=True)
 
-        #         bpy.ops.object.modifier_add(type='SHRINKWRAP')
-        #         bpy.context.object.modifiers["Shrinkwrap"].target = tooth_object
-        #         bpy.context.object.modifiers["Shrinkwrap"].wrap_method = 'NEAREST_SURFACEPOINT'
-        #         bpy.context.object.modifiers["Shrinkwrap"].wrap_mode = 'OUTSIDE_SURFACE'
-        #         bpy.context.object.modifiers["Shrinkwrap"].offset = 0.2
-        #         bpy.context.object.modifiers["Shrinkwrap"].show_on_cage = True
+            max_y = sorted_list[0][1]
+            min_y = sorted_list[len(sorted_list)-1][1]
 
-        #         bpy.ops.object.modifier_add(type='SMOOTH')
-        #         bpy.context.object.modifiers["Smooth"].iterations = 20
-        #         bpy.context.object.modifiers["Smooth"].show_in_editmode = True
-        #         bpy.context.object.modifiers["Smooth"].show_on_cage = True
-        #         bpy.context.object.modifiers["Smooth"].factor = 0.5
+            max_y_pos = sorted_list_pos[0][1]
+            min_y_pos = sorted_list_pos[len(sorted_list_pos)-1][1]
+                
+            max_y_neg = sorted_list_neg[0][1]
+            min_y_neg = sorted_list_neg[len(sorted_list_neg)-1][1]
 
-        #         obj.data.name = 'curve_' + tooth_name
-        #         obj.name = 'curve_' + tooth_name
-        #         obj.select_set(False)
+            six_vertice = []
+            up_index = []
+            down_index = []
+            for elem in sorted_list:
+                if elem[1] < max_y * 0.8 and elem[1] > max_y * 0.65:
+                    up_index.append(elem[0])
+                if elem[1] > min_y * 0.8 and elem[1] < min_y * 0.65:
+                    down_index.append(elem[0])
 
-        # for obj in context.collection.objects:
-        #     if obj.name.startswith('curve'):
-        #         context.view_layer.objects.active = obj
-        #         obj.select_set(True)
-        # bpy.ops.object.mode_set(mode='EDIT')
-        # bpy.ops.mesh.select_all(action='DESELECT')  
-        # bpy.context.scene.tool_settings.use_snap = True
-        # bpy.context.space_data.show_gizmo_object_translate = False
-        # bpy.ops.wm.tool_set_by_id(name="builtin.select")
+            temp_z = -100
+            max_z_index = 0
+            for idx in up_index:
+                if vertices[idx].co[2] > temp_z:
+                    temp_z = vertices[idx].co[2]
+                    max_z_index = idx
+            six_vertice.append(max_z_index)
+
+            temp_y = -100
+            max_y_index = 0
+            for idx in down_index:
+                if vertices[idx].co[1] > temp_y:
+                    temp_y = vertices[idx].co[1]
+                    max_y_index = idx
+            six_vertice.append(max_y_index)
+
+
+            # pos_x_vertices
+            pos_up_index = []
+            pos_down_index = []
+            for elem in sorted_list_pos:
+                if abs(elem[1] - 0.5 * max_y_pos) < 0.2:
+                    pos_up_index.append(elem[0])
+                if abs(elem[1] - 0.5 * min_y_pos) < 0.2:
+                    pos_down_index.append(elem[0])
+                
+            temp_z = -100
+            max_z_index = 0
+            for idx in pos_up_index:
+                if vertices[idx].co[2] > temp_z:
+                    temp_z = vertices[idx].co[1]
+                    max_z_index = idx
+            six_vertice.append(max_z_index)
+
+            temp_z = -100
+            max_z_inde = 0
+            for idx in pos_down_index:
+                if vertices[idx].co[2] > temp_z:
+                    temp_z = vertices[idx].co[1]
+                    max_z_index = idx
+            six_vertice.append(max_z_index)
+
+            # negitive x vertices
+            neg_up_index = []
+            neg_down_index = []
+            for elem in sorted_list_neg:
+                if abs(elem[1] - 0.5 * max_y_neg) < 0.2:
+                    neg_up_index.append(elem[0])
+                if abs(elem[1] - 0.5 * min_y_neg) < 0.2:
+                    neg_down_index.append(elem[0])
+                
+            temp_z = -100
+            max_z_inde = 0
+            for idx in neg_up_index:
+                if vertices[idx].co[2] > temp_z:
+                    temp_z = vertices[idx].co[1]
+                    max_z_index = idx
+            six_vertice.append(max_z_index)
+
+
+            temp_z = -100
+            max_z_inde = 0
+            for idx in neg_down_index:
+                if vertices[idx].co[2] > temp_z:
+                    temp_z = vertices[idx].co[1]
+                    max_z_index = idx
+            six_vertice.append(max_z_index)
+            
+            context.view_layer.objects.active = main_obj
+            main_obj.select_set(True)
+            bpy.ops.object.vertex_group_add()
+            main_obj.vertex_groups['Group'].name = 'emboss_curve'
+
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.context.tool_settings.mesh_select_mode = (True, False, False)
+            bpy.ops.mesh.select_all(action='DESELECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+            vertices[six_vertice[0]].select = True
+            vertices[six_vertice[2]].select = True
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.shortest_path_select(edge_mode='SELECT')
+            bpy.ops.object.vertex_group_assign()
+            bpy.ops.mesh.select_all(action='DESELECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+            vertices[six_vertice[2]].select = True
+            vertices[six_vertice[3]].select = True
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.shortest_path_select(edge_mode='SELECT')
+            bpy.ops.object.vertex_group_assign()
+            bpy.ops.mesh.select_all(action='DESELECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+            vertices[six_vertice[3]].select = True
+            vertices[six_vertice[1]].select = True
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.shortest_path_select(edge_mode='SELECT')
+            bpy.ops.object.vertex_group_assign()
+            bpy.ops.mesh.select_all(action='DESELECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+            vertices[six_vertice[1]].select = True
+            vertices[six_vertice[5]].select = True
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.shortest_path_select(edge_mode='SELECT')
+            bpy.ops.object.vertex_group_assign()
+            bpy.ops.mesh.select_all(action='DESELECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+            vertices[six_vertice[5]].select = True
+            vertices[six_vertice[4]].select = True
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.shortest_path_select(edge_mode='SELECT')
+            bpy.ops.object.vertex_group_assign()
+            bpy.ops.mesh.select_all(action='DESELECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+            vertices[six_vertice[4]].select = True
+            vertices[six_vertice[0]].select = True
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.shortest_path_select(edge_mode='SELECT')
+            bpy.ops.object.vertex_group_assign()
+            bpy.ops.mesh.select_all(action='DESELECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+            
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.object.vertex_group_select()
+            bpy.ops.mesh.loop_to_region()
+            bpy.context.tool_settings.mesh_select_mode = (False, True, False)
+            bpy.ops.mesh.region_to_loop()
+            bpy.ops.mesh.separate(type='SELECTED')
+            bpy.ops.object.mode_set(mode='OBJECT')
+            bpy.ops.object.select_all(action='DESELECT')
+            
+            context.view_layer.objects.active = main_obj
+            main_obj.select_set(True)
+            bpy.ops.object.delete()
+            
+            emboss_curve_name = tooth_name + '.002' 
+            # context.collection.objects[emboss_curve_name].data.name = 'emboss_' + tooth_name
+            # context.collection.objects[emboss_curve_name].name = 'emboss_' + tooth_name
+
+            emboss_curve_obj = context.collection.objects[emboss_curve_name]
+            context.view_layer.objects.active = emboss_curve_obj
+            emboss_curve_obj.select_set(True)
+
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.context.tool_settings.mesh_select_mode = (True, False, False)
+            bpy.ops.mesh.select_all(action='SELECT')
+            bpy.ops.mesh.dissolve_degenerate(threshold=0.05)
+            bpy.ops.mesh.unsubdivide()
+
+            bpy.ops.object.modifier_add(type='SUBSURF')
+            bpy.context.object.modifiers["Subdivision"].levels = 3
+            bpy.context.object.modifiers["Subdivision"].show_on_cage = True
+
+            bpy.ops.object.modifier_add(type='SHRINKWRAP')
+            bpy.context.object.modifiers["Shrinkwrap"].target = context.collection.objects[tooth_name]
+            bpy.context.object.modifiers["Shrinkwrap"].wrap_method = 'NEAREST_SURFACEPOINT'
+            bpy.context.object.modifiers["Shrinkwrap"].wrap_mode = 'OUTSIDE_SURFACE'
+            bpy.context.object.modifiers["Shrinkwrap"].offset = 0.2
+            bpy.context.object.modifiers["Shrinkwrap"].show_on_cage = True
+
+            bpy.ops.object.modifier_add(type='SMOOTH')
+            bpy.context.object.modifiers["Smooth"].iterations = 10
+            bpy.context.object.modifiers["Smooth"].show_in_editmode = True
+            bpy.context.object.modifiers["Smooth"].show_on_cage = True
+            bpy.context.object.modifiers["Smooth"].factor = 0.5
+
+            bpy.ops.object.mode_set(mode='OBJECT')
+            context.object.data.name = 'emboss_' + tooth_name
+            context.object.name = 'emboss_' + tooth_name
+            bpy.ops.object.select_all(action='DESELECT')
+
+        for obj in context.collection.objects:
+            if obj.name.startswith('emboss'):
+                obj.select_set(True)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.context.scene.tool_settings.use_snap = True
+        bpy.context.space_data.show_gizmo_object_translate = False
         bpy.ops.ed.undo_push()
 
         return {'FINISHED'}
