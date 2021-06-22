@@ -2166,7 +2166,7 @@ class MESH_TO_filp_z_orientation(bpy.types.Operator):
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
 
-        if len(context.selected_objects) == 1 and context.selected_objects[0].name.endswith('_coordinate'):
+        if len(context.selected_objects) == 1 and context.selected_objects[0].name.endswith('_coord'):
             matrix_local = context.object.matrix_local.copy()
             M = matrix_local.to_3x3()
             print(M)
@@ -2317,6 +2317,8 @@ class MESH_TO_automatic_orientation(bpy.types.Operator):
         bpy.ops.object.modifier_add(type='SKIN')
         bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Skin")
         coordinate_obj = context.object
+        coordinate_obj.data.name = 'Vert'
+        coordinate_obj.name = 'Vert'
         bpy.ops.object.select_all(action='DESELECT')
         
         if mytool.up_down == 'UP_':
@@ -2340,7 +2342,7 @@ class MESH_TO_automatic_orientation(bpy.types.Operator):
                 bpy.ops.mesh.poke(offset=1, use_relative_offset=True, center_mode='BOUNDS')
                 bpy.ops.mesh.select_all(action='DESELECT')
                 bpy.ops.object.mode_set(mode='OBJECT')
-                bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
+                # bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
                 tooth_name = obj.name
                 tooth_loca = obj.location
                 last_vertice = obj.data.vertices[len(obj.data.vertices)-1]
@@ -2491,6 +2493,16 @@ class MESH_TO_apply_auto_orientation(bpy.types.Operator):
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.select_all(action='DESELECT')
                 bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
+                bpy.ops.transform.create_orientation(name="local_orient", use=True)
+                loacl_orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
+                loacl_orientation_matirx.invert()
+                a = (loacl_orientation_matirx.row[0][0], loacl_orientation_matirx.row[0][1], loacl_orientation_matirx.row[0][2])
+                b = (loacl_orientation_matirx.row[1][0], loacl_orientation_matirx.row[1][1], loacl_orientation_matirx.row[1][2])
+                c = (loacl_orientation_matirx.row[2][0], loacl_orientation_matirx.row[2][1], loacl_orientation_matirx.row[2][2])
+                bpy.ops.transform.delete_orientation()
+                bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
+                bpy.ops.transform.rotate(value=-1.5708, orient_axis='X', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(True, False, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
                 obj.select_set(True)
                 bpy.ops.object.join()
                 bpy.ops.object.mode_set(mode='EDIT')
@@ -2505,7 +2517,7 @@ class MESH_TO_apply_auto_orientation(bpy.types.Operator):
                 context.collection.objects[sys_gave_name].name = toot_name
                 bpy.data.collections[collection_name].objects.link(context.collection.objects[toot_name])
                 context.collection.objects.unlink(context.collection.objects[toot_name])
-                
+
         if mytool.up_down == 'UP_':
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
         else:
@@ -2525,24 +2537,12 @@ class MESH_TO_apply_auto_orientation(bpy.types.Operator):
                     bpy.context.tool_settings.mesh_select_mode = (True, False, False)
                     bpy.ops.mesh.delete(type='VERT')
                     bpy.ops.object.mode_set(mode='OBJECT')
-                    bpy.ops.transform.create_orientation(name="local_orient", use=True)
-                    normal_orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
-                    normal_orientation_matirx.invert()
-                    a = (normal_orientation_matirx.row[0][0], normal_orientation_matirx.row[0][1], normal_orientation_matirx.row[0][2])
-                    b = (normal_orientation_matirx.row[1][0], normal_orientation_matirx.row[1][1], normal_orientation_matirx.row[1][2])
-                    c = (normal_orientation_matirx.row[2][0], normal_orientation_matirx.row[2][1], normal_orientation_matirx.row[2][2])
-                    bpy.ops.transform.delete_orientation()
-                    bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
-                    bpy.context.scene.tool_settings.use_transform_data_origin = True
-                    bpy.ops.transform.rotate(value=-1.5708, orient_axis='X', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(True, False, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                    bpy.context.scene.tool_settings.use_transform_data_origin = False
-                    
                     bpy.ops.object.select_all(action='DESELECT')
 
-                bpy.ops.ed.undo_push()
+        bpy.ops.ed.undo_push()
 
-                context.scene.transform_orientation_slots[1].type = 'LOCAL'
-                bpy.context.space_data.show_gizmo_object_rotate = False
+        context.scene.transform_orientation_slots[1].type = 'LOCAL'
+        bpy.context.space_data.show_gizmo_object_rotate = False
         return {'FINISHED'}
 
 class MESH_TO_find_emboss_curves(bpy.types.Operator):
@@ -3436,9 +3436,9 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
         dental_arch.name = curve_name
         dental_arch.show_name = True
         if mytool.up_down == 'UP_':
-            dental_arch.location[2] = dental_arch.location[2] - 15
+            dental_arch.location[2] = dental_arch.location[2] - 10
         else:
-            dental_arch.location[2] = dental_arch.location[2] + 15
+            dental_arch.location[2] = dental_arch.location[2] + 10
         context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
         context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
         bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
@@ -3553,7 +3553,7 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
             edges = dental_arch.data.edges
 
             for obj in context.collection.objects:
-                if obj.name.startswith('Tooth'):
+                if obj.name.startswith('Tooth') and  not obj.name.endswith('_coord'):
                     min_dis = 100
                     min_index = 0
                     loca = obj.location
@@ -3561,8 +3561,7 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                     for vertice in vertices:
                         disp = loca - vertice.co
                         dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
-                        if dis < 8:
-                                    
+                        if dis < 8: 
                             if dis < min_dis:
                                 min_dis = dis
                                 min_index = vertice.index
@@ -3626,7 +3625,6 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                             bpy.ops.transform.create_orientation(name="local_orient", use=True)
                             orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
                             orientation_matirx.invert()
-                            
                             a = (orientation_matirx.row[0][0], orientation_matirx.row[0][1], orientation_matirx.row[0][2])
                             b = (orientation_matirx.row[1][0], orientation_matirx.row[1][1], orientation_matirx.row[1][2])
                             c = (orientation_matirx.row[2][0], orientation_matirx.row[2][1], orientation_matirx.row[2][2])
