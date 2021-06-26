@@ -2345,8 +2345,12 @@ class MESH_TO_automatic_orientation(bpy.types.Operator):
 
                 face_index = []
                 for face in obj.data.polygons:
-                    if face.center[2] < -2:
-                        face.select = True
+                    if mytool.up_down == 'UP_':
+                        if face.center[2] > 2:
+                            face.select = True
+                    else:
+                        if face.center[2] < -2:
+                            face.select = True
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.duplicate()
                 bpy.ops.mesh.separate(type='SELECTED')
@@ -2403,11 +2407,9 @@ class MESH_TO_automatic_orientation(bpy.types.Operator):
                 x_axis_orient = y_axis_orient.cross(z_axis_orient)
                 print(x_axis_orient)
                 M = mathutils.Matrix([x_axis_orient, y_axis_orient, z_axis_orient])
-                # print(M)
                 M.invert()
                 M.normalize()
                 M = M.to_4x4()
-                # print(M)
 
                 N = obj.matrix_local.copy()
                 M.row[0][3] = N.row[0][3]
