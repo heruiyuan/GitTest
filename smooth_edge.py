@@ -2282,9 +2282,12 @@ class MESH_TO_automatic_orientation(bpy.types.Operator):
         scene = context.scene
         mytool = scene.my_tool
 
+        bpy.context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
+        bpy.context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
         context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Collection']
         bpy.ops.object.select_all(action='DESELECT')
-        bpy.ops.mesh.primitive_vert_add()       # add a vertex in origin(3D Cursor)
+        bpy.ops.mesh.primitive_vert_add()
+        bpy.context.tool_settings.mesh_select_mode = (True, False, False)       
         bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(8, 0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(True, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.editmode_toggle()
@@ -2322,17 +2325,64 @@ class MESH_TO_automatic_orientation(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
         
         if mytool.up_down == 'UP_':
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
+            collection_name = 'Curves_U'
         else:
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
-
+            collection_name = 'Curves_D'
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[collection_name]
+        
         for obj in context.collection.objects:
             if obj.name.startswith('Tooth'):
                 context.view_layer.objects.active = obj
-                obj.select_set(True)
+                obj.select_set(True)    
                 tooth_name = obj.name
                 tooth_loca = obj.location
                 bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.context.tool_settings.mesh_select_mode = (False, False, True)
+                bpy.ops.mesh.select_all(action='DESELECT')
+                bpy.ops.object.mode_set(mode='OBJECT')
+
+                face_index = []
+                for face in obj.data.polygons:
+                    if face.center[2] < -2:
+                        face.select = True
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.duplicate()
+                bpy.ops.mesh.separate(type='SELECTED')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                sys_gaven_name = obj.name + '.001'
+                obj_copy = context.collection.objects[sys_gaven_name]
+                bpy.data.collections['Collection'].objects.link(obj_copy)
+                context.collection.objects.unlink(obj_copy)
+                context.view_layer.objects.active = obj_copy
+                bpy.ops.object.select_all(action='DESELECT')
+                obj_copy.select_set(True)
+                obj_copy.data.name = tooth_name + '_part'   
+                obj_copy.name = tooth_name + '_part'
+                obj_copy.data.polygons[0].select = True
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_linked(delimit={'SEAM'})
+                bpy.ops.mesh.separate(type='SELECTED')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+                if len(context.selected_objects) == 2:
+                    loca1 = context.selected_objects[0].location
+                    loca2 = context.selected_objects[1].location
+                    seq = []
+                    seq.append(loca1)
+                    seq.append(loca2)
+                    seq.append(tooth_loca)
+                    print(seq)
+                    x_axis_orient = mathutils.geometry.normal(seq)
+                    x_axis_orient.normalize()
+                    print(tooth_name, x_axis_orient)
+                    bpy.ops.object.delete(use_global=True, confirm=False)   
+                bpy.ops.object.select_all(action='DESELECT')
+
+                context.view_layer.objects.active = obj
+                obj.select_set(True)
+
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.context.tool_settings.mesh_select_mode = (True, False, False)
                 bpy.ops.mesh.select_all(action='DESELECT')
@@ -2343,68 +2393,134 @@ class MESH_TO_automatic_orientation(bpy.types.Operator):
                 bpy.ops.mesh.select_all(action='DESELECT')
                 bpy.ops.object.mode_set(mode='OBJECT')
                 # bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
-                tooth_name = obj.name
-                tooth_loca = obj.location
                 last_vertice = obj.data.vertices[len(obj.data.vertices)-1]
                 last_vertice.select = True
-                orient_axis = last_vertice.co.copy()
-                orient_axis.normalize()
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.context.scene.transform_orientation_slots[0].type = 'NORMAL'
-                bpy.ops.transform.create_orientation(name="normal", use=True)
-                normal_orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
-                bpy.ops.transform.delete_orientation()
-                bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
-                normal_orientation_matirx.normalize()
-                M = normal_orientation_matirx.to_4x4()
-                M.row[0][2] = orient_axis[0]
-                M.row[1][2] = orient_axis[1]
-                M.row[2][2] = orient_axis[2]
-                bpy.ops.object.mode_set(mode='OBJECT')
+                y_axis_orient = last_vertice.co.copy()
+                y_axis_orient.normalize()
+                print('y axis:', y_axis_orient)
+                z_axis_orient = y_axis_orient.cross(x_axis_orient)
+                print(z_axis_orient)
+                x_axis_orient = y_axis_orient.cross(z_axis_orient)
+                print(x_axis_orient)
+                M = mathutils.Matrix([x_axis_orient, y_axis_orient, z_axis_orient])
+                # print(M)
+                M.invert()
+                M.normalize()
+                M = M.to_4x4()
+                # print(M)
+
+                N = obj.matrix_local.copy()
+                M.row[0][3] = N.row[0][3]
+                M.row[1][3] = N.row[1][3]
+                M.row[2][3] = N.row[2][3]
+
                 bpy.ops.object.select_all(action='DESELECT')
-                context.view_layer.objects.active = coordinate_obj
-                coordinate_obj.select_set(True)
+                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Collection']
+                context.view_layer.objects.active = context.collection.objects['Vert']
+                context.collection.objects['Vert'].select_set(True)  
                 bpy.ops.object.duplicate()
-                context.object.location = tooth_loca
-                M.row[0][3] = obj.matrix_local.row[0][3]
-                M.row[1][3] = obj.matrix_local.row[1][3]
-                M.row[2][3] = obj.matrix_local.row[2][3]
-                context.object.matrix_local = M
                 coord_object = context.object
+                coord_object.matrix_local = M 
                 coord_object.data.name = tooth_name + '_coord'
                 coord_object.name = tooth_name + '_coord'
-                bpy.ops.object.select_all(action='DESELECT')
 
-                context.view_layer.objects.active = obj
-                obj.select_set(True)
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.select_all(action='SELECT')
-                bpy.ops.object.mode_set(mode='OBJECT')
                 bpy.ops.object.select_all(action='DESELECT')
                 context.view_layer.objects.active = coord_object
-                coord_object.select_set(True)
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.select_all(action='DESELECT')
-                bpy.ops.object.mode_set(mode='OBJECT')
-                obj.select_set(True)
-                bpy.ops.object.join()
-                bpy.ops.object.material_slot_remove()
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.separate(type='SELECTED')
-                bpy.ops.object.mode_set(mode = 'OBJECT')
+                coord_object.select_set(True)  
+                if coord_object.matrix_local.row[1][2] < 0:
+                    matrix_local = coord_object.matrix_local.copy()
+                    M = matrix_local.to_3x3()
+                    M.invert()
+                    a = (M.row[0][0], M.row[0][1], M.row[0][2])
+                    b = (M.row[1][0], M.row[1][1], M.row[1][2])
+                    c = (M.row[2][0], M.row[2][1], M.row[2][2])
+                    bpy.ops.transform.rotate(value=3.14159, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
                 bpy.ops.object.select_all(action='DESELECT')
 
-        context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Collection']
-        bpy.ops.object.select_all(action='DESELECT')
-        context.view_layer.objects.active = context.collection.objects['Vert']
-        context.collection.objects['Vert'].select_set(True)
+                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[collection_name]
+        
+        context.view_layer.objects.active = bpy.data.objects['Vert']
+        bpy.data.objects['Vert'].select_set(True) 
         bpy.ops.object.delete(use_global=True, confirm=False)
-
-
+        
         context.scene.transform_orientation_slots[1].type = 'LOCAL'
         context.space_data.show_gizmo_object_translate = True
         bpy.context.space_data.show_gizmo_object_rotate = True
 
+        bpy.ops.ed.undo_push()
+        return {'FINISHED'}
+
+class MESH_TO_apply_auto_orientation(bpy.types.Operator):
+    """Apply Auto Orientation"""
+    bl_idname = "mesh.apply_auto_orientation"
+    bl_label = "Apply Auto Orientation"
+
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.my_tool
+        
+        if mytool.up_down == 'UP_':
+            collection_name = 'Curves_U'
+        else:
+            collection_name = 'Curves_D'
+
+        bpy.ops.object.select_all(action='DESELECT')
+        context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[collection_name]
+        for obj in context.collection.objects:
+            if obj.name.startswith('Tooth'):
+                bpy.data.collections['Collection'].objects.link(obj)
+                context.collection.objects.unlink(obj)
+
+        bpy.ops.object.select_all(action='DESELECT')
+        context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Collection']
+        for obj in context.collection.objects:
+            if obj.name.endswith('_coord'):
+                tooth_name = obj.name.rstrip('_coord')
+                tooth_obj = context.collection.objects[tooth_name]
+                context.view_layer.objects.active = tooth_obj
+                tooth_obj.select_set(True)
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.ops.object.select_all(action='DESELECT')    
+                context.view_layer.objects.active = obj
+                obj.select_set(True)
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='DESELECT')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                tooth_obj.select_set(True)
+                bpy.ops.object.join()
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.separate(type='SELECTED')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                for obj in context.selected_objects:
+                    if obj.name.endswith('.001'):
+                        obj.data.name = tooth_name
+                        obj.name = tooth_name
+                    bpy.data.collections[collection_name].objects.link(obj)
+                    context.collection.objects.unlink(obj)
+                bpy.ops.object.select_all(action='DESELECT')
+        
+        if mytool.up_down == 'UP_':
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
+        else:
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
+
+        for obj in context.collection.objects:
+            if obj.name.startswith('Tooth'):
+                if obj.name.endswith('_coord'):
+                    obj.hide_set(True)
+                else:
+                    context.view_layer.objects.active = obj
+                    obj.select_set(True)
+                    vrt_index = len(obj.data.vertices) - 1
+                    obj.data.vertices[vrt_index].select = True
+                    bpy.ops.object.mode_set(mode='EDIT')
+                    bpy.ops.mesh.delete(type='VERT')
+                bpy.ops.object.mode_set(mode='OBJECT')
+
+        context.scene.transform_orientation_slots[1].type = 'LOCAL'
+        bpy.context.space_data.show_gizmo_object_rotate = False
         bpy.ops.ed.undo_push()
         return {'FINISHED'}
 
@@ -2460,89 +2576,6 @@ class MESH_TO_apply_picked_orientation(bpy.types.Operator):
                 print('Selcted Face Quantity is not 1!')
 
 
-        return {'FINISHED'}
-
-class MESH_TO_apply_auto_orientation(bpy.types.Operator):
-    """Apply Auto Orientation"""
-    bl_idname = "mesh.apply_auto_orientation"
-    bl_label = "Apply Auto Orientation"
-
-    def execute(self, context):
-        scene = context.scene
-        mytool = scene.my_tool
-        
-        if mytool.up_down == 'UP_':
-            collection_name = 'Curves_U'
-        else:
-            collection_name = 'Curves_D'
-
-        context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Collection']
-        for obj in context.collection.objects:
-            if obj.name.startswith('Tooth') and obj.name.endswith('001'):
-                bpy.ops.object.select_all(action='DESELECT')
-                sys_gave_name = obj.name
-                coord_name = obj.name.rstrip('.001')
-                context.view_layer.objects.active = obj
-                obj.select_set(True)
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.select_all(action='SELECT')
-                bpy.ops.object.mode_set(mode='OBJECT')
-                bpy.ops.object.select_all(action='DESELECT')
-                context.view_layer.objects.active = context.collection.objects[coord_name]
-                context.collection.objects[coord_name].select_set(True)
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.select_all(action='DESELECT')
-                bpy.ops.object.mode_set(mode='OBJECT')
-                bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
-                bpy.ops.transform.create_orientation(name="local_orient", use=True)
-                loacl_orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
-                loacl_orientation_matirx.invert()
-                a = (loacl_orientation_matirx.row[0][0], loacl_orientation_matirx.row[0][1], loacl_orientation_matirx.row[0][2])
-                b = (loacl_orientation_matirx.row[1][0], loacl_orientation_matirx.row[1][1], loacl_orientation_matirx.row[1][2])
-                c = (loacl_orientation_matirx.row[2][0], loacl_orientation_matirx.row[2][1], loacl_orientation_matirx.row[2][2])
-                bpy.ops.transform.delete_orientation()
-                bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
-                bpy.ops.transform.rotate(value=-1.5708, orient_axis='X', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(True, False, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                obj.select_set(True)
-                bpy.ops.object.join()
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.separate(type='SELECTED')
-                bpy.ops.object.mode_set(mode='OBJECT')
-                bpy.ops.object.select_all(action='DESELECT')
-                bpy.data.collections[collection_name].objects.link(context.collection.objects[coord_name])
-                context.collection.objects.unlink(context.collection.objects[coord_name])
-                toot_name = sys_gave_name.rstrip('.001')
-                toot_name = toot_name.rstrip('_coord')
-                context.collection.objects[sys_gave_name].data.name = toot_name
-                context.collection.objects[sys_gave_name].name = toot_name
-                bpy.data.collections[collection_name].objects.link(context.collection.objects[toot_name])
-                context.collection.objects.unlink(context.collection.objects[toot_name])
-
-        if mytool.up_down == 'UP_':
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
-        else:
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
-
-        for obj in context.collection.objects:
-            if obj.name.startswith('Tooth'):
-                if obj.name.endswith('coord'):
-                    obj.hide_set(True)
-                else:
-                    bpy.ops.object.select_all(action='DESELECT')
-                    context.view_layer.objects.active = obj
-                    obj.select_set(True)
-                    vertices = obj.data.vertices
-                    vertices[len(vertices)-1].select = True
-                    bpy.ops.object.mode_set(mode='EDIT')
-                    bpy.context.tool_settings.mesh_select_mode = (True, False, False)
-                    bpy.ops.mesh.delete(type='VERT')
-                    bpy.ops.object.mode_set(mode='OBJECT')
-                    bpy.ops.object.select_all(action='DESELECT')
-
-        bpy.ops.ed.undo_push()
-
-        context.scene.transform_orientation_slots[1].type = 'LOCAL'
-        bpy.context.space_data.show_gizmo_object_rotate = False
         return {'FINISHED'}
 
 class MESH_TO_find_emboss_curves(bpy.types.Operator):
@@ -3420,13 +3453,16 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
                 context.object.data.name = curve_name + '_vert_' + str(idx)
                 context.object.name = curve_name + '_vert_' + str(idx)
                 context.object.location[2] = 0.0
-                bpy.data.collections['Collection'].objects.link(context.object)
+                if bpy.data.collections.get('Arch') is None:
+                    arch_coll = bpy.data.collections.new('Arch')
+                    context.scene.collection.children.link(arch_coll)
+                bpy.data.collections['Arch'].objects.link(context.object)
                 context.collection.objects.unlink(context.object)
 
         bpy.ops.object.select_all(action='DESELECT')
-        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Collection']        
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Arch']        
         for obj in context.collection.objects: 
-            if obj.name.startswith(curve_name):
+            if obj.name.startswith(curve_name): 
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
         bpy.ops.object.join()
@@ -3503,10 +3539,10 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
         bpy.context.object.modifiers["Subdivision"].show_on_cage = True
         
         bpy.ops.object.modifier_add(type='SMOOTH')
-        bpy.context.object.modifiers["Smooth"].iterations = 10
+        bpy.context.object.modifiers["Smooth"].iterations = 20
         bpy.context.object.modifiers["Smooth"].show_in_editmode = True
         bpy.context.object.modifiers["Smooth"].show_on_cage = True
-        bpy.context.object.modifiers["Smooth"].factor = 0.5
+        bpy.context.object.modifiers["Smooth"].factor = 0.7
         bpy.ops.object.mode_set(mode='EDIT')
 
         bpy.context.scene.tool_settings.use_snap = False
@@ -3634,8 +3670,6 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
 
                             bpy.ops.transform.rotate(value=theta, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
                             bpy.ops.object.select_all(action='DESELECT')
-
-
 
                             print(obj.name,theta/math.pi*180)
                             print(M, vector1_x, vector1_y)
