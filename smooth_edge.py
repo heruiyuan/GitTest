@@ -2170,7 +2170,7 @@ class MESH_TO_filp_z_orientation(bpy.types.Operator):
             matrix_local = context.object.matrix_local.copy()
             M = matrix_local.to_3x3()
             print(M)
-            M.invert()
+            M.transpose()
             print(M)
             a = (M.row[0][0], M.row[0][1], M.row[0][2])
             b = (M.row[1][0], M.row[1][1], M.row[1][2])
@@ -2407,7 +2407,7 @@ class MESH_TO_automatic_orientation(bpy.types.Operator):
                 x_axis_orient = y_axis_orient.cross(z_axis_orient)
                 print(x_axis_orient)
                 M = mathutils.Matrix([x_axis_orient, y_axis_orient, z_axis_orient])
-                M.invert()
+                M.transpose()
                 M.normalize()
                 M = M.to_4x4()
 
@@ -2432,7 +2432,7 @@ class MESH_TO_automatic_orientation(bpy.types.Operator):
                 if coord_object.matrix_local.row[1][2] < 0:
                     matrix_local = coord_object.matrix_local.copy()
                     M = matrix_local.to_3x3()
-                    M.invert()
+                    M.transpose()
                     a = (M.row[0][0], M.row[0][1], M.row[0][2])
                     b = (M.row[1][0], M.row[1][1], M.row[1][2])
                     c = (M.row[2][0], M.row[2][1], M.row[2][2])
@@ -3066,7 +3066,7 @@ class MESH_TO_exturde_emboss_panel(bpy.types.Operator):
             bpy.context.scene.tool_settings.use_snap = False
             bpy.ops.transform.create_orientation(name="normal", use=True)
             normal_orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
-            normal_orientation_matirx.invert()
+            normal_orientation_matirx.transpose()
             # print(normal_orientation_matirx)
             a = (normal_orientation_matirx.row[0][0], normal_orientation_matirx.row[0][1], normal_orientation_matirx.row[0][2])
             b = (normal_orientation_matirx.row[1][0], normal_orientation_matirx.row[1][1], normal_orientation_matirx.row[1][2])
@@ -3166,7 +3166,7 @@ class MESH_TO_emboss_image(bpy.types.Operator):
 
                 # bpy.ops.transform.create_orientation(name="local_orient", use=True)
                 # normal_orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
-                # normal_orientation_matirx.invert()
+                # normal_orientation_matirx.transpose()
                 # print(normal_orientation_matirx)
                 # a = (normal_orientation_matirx.row[0][0], normal_orientation_matirx.row[0][1], normal_orientation_matirx.row[0][2])
                 # b = (normal_orientation_matirx.row[1][0], normal_orientation_matirx.row[1][1], normal_orientation_matirx.row[1][2])
@@ -3445,10 +3445,13 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
             curve_name = 'down_arch'
-        
+        sum_location = 0
+        qunatity = 0
         for idx, obj in enumerate(context.collection.objects):
             if obj.name.startswith('Tooth'):
                 loca = obj.location
+                sum_location = sum_location + loca[2]
+                qunatity = qunatity + 1
                 scene.cursor.location = loca
                 bpy.ops.mesh.primitive_vert_add()
                 bpy.ops.object.mode_set(mode='OBJECT')
@@ -3473,10 +3476,8 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
         dental_arch.data.name = curve_name
         dental_arch.name = curve_name
         dental_arch.show_name = True
-        if mytool.up_down == 'UP_':
-            dental_arch.location[2] = dental_arch.location[2] - 10
-        else:
-            dental_arch.location[2] = dental_arch.location[2] + 10
+
+        dental_arch.location[2] = sum_location / qunatity
         context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
         context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
         bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
@@ -3512,7 +3513,6 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
         sort_list = sorted(angle_inde_dict.items(), key=lambda item:item[1])
         print(sort_list)
 
-        
         for idx, item in enumerate(sort_list):
             if idx == len(sort_list)-1:
                 break   
@@ -3550,6 +3550,7 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
         bpy.context.scene.tool_settings.use_snap = False
         bpy.ops.wm.tool_set_by_id(name="builtin.select")
         bpy.context.space_data.show_gizmo_object_translate = False
+
         bpy.context.tool_settings.mesh_select_mode = (True, False, False)
         bpy.ops.ed.undo_push()
         return {'FINISHED'}
@@ -3566,8 +3567,8 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
         if context.mode == 'EDIT_MESH':  
             bpy.ops.object.mode_set(mode='OBJECT')
             
-            bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Subdivision")
-            bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Smooth")
+            bpy.ops.object.convert(target='MESH')
+
             dental_arch = context.object
 
             bpy.ops.object.mode_set(mode='EDIT')
@@ -3595,11 +3596,12 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                     min_dis = 100
                     min_index = 0
                     loca = obj.location
-                    x_lcoa = loca[0]
+                    tooth_matrix = obj.matrix_world.copy()
+                    tooth_matrix_invert = tooth_matrix.inverted()
                     for vertice in vertices:
                         disp = loca - vertice.co
                         dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
-                        if dis < 8: 
+                        if dis < 5: 
                             if dis < min_dis:
                                 min_dis = dis
                                 min_index = vertice.index
@@ -3627,15 +3629,21 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                         k = (y2 - y1) / (x2 - x1)
                         if k != 0:
                             k2 = -(1/k)
-                            b2 = vertices[min_index].co[1] - vertices[min_index].co[0]*k2
+                            b2 = vertices[min_index].co[1] - vertices[min_index].co[0] * k2
                             print('k is :', k, k2, obj.name)
                             point_x = 0
-                            pooin_y = b2
+                            point_y = b2
+                            point_z = vertices[min_index].co[2]
+                            
                             vector1_x = point_x - vertices[min_index].co[0]
-                            vector1_y = pooin_y - vertices[min_index].co[1]
+                            vector1_y = point_y - vertices[min_index].co[1]
+
+                            print('Point', vector1_x, vector1_y)
+                    
                             M = obj.matrix_local.copy()
                             M = M.to_3x3()
-                            M.invert()
+                            M.transpose()
+                            print(M)
                             vector2_x = M.row[2][0]
                             vector2_y = M.row[2][1]
                             len1 = math.sqrt((vector1_x * vector1_x) + (vector1_y * vector1_y))
@@ -3645,24 +3653,25 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                             vector2_x = vector2_x / len2
                             vector2_y = vector2_y / len2
                             
-                            dot = vector1_x * vector2_x + vector1_y * vector2_y
+                            dot = vector1_x * vector2_x + vector1_y * vector2_y 
                             theta  = math.acos(dot)
-                            
                             P_N = vector2_x * vector1_y - vector1_x * vector2_y
+                            print(obj.name,theta/math.pi*180, P_N)
+                            print('========================')
                             if mytool.up_down == 'UP_':
-                                if P_N > 0:
-                                    theta = -theta
-                            else:
                                 if P_N < 0:
                                     theta = -theta
-
+                            else:   
+                                if P_N > 0:
+                                    theta = -theta
+                            bpy.ops.object.select_all(action='DESELECT')
                             context.view_layer.objects.active = obj
                             obj.select_set(True)
 
                             bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
                             bpy.ops.transform.create_orientation(name="local_orient", use=True)
                             orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
-                            orientation_matirx.invert()
+                            orientation_matirx.transpose()
                             a = (orientation_matirx.row[0][0], orientation_matirx.row[0][1], orientation_matirx.row[0][2])
                             b = (orientation_matirx.row[1][0], orientation_matirx.row[1][1], orientation_matirx.row[1][2])
                             c = (orientation_matirx.row[2][0], orientation_matirx.row[2][1], orientation_matirx.row[2][2])
@@ -3673,8 +3682,7 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                             bpy.ops.transform.rotate(value=theta, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
                             bpy.ops.object.select_all(action='DESELECT')
 
-                            print(obj.name,theta/math.pi*180)
-                            print(M, vector1_x, vector1_y)
+                            # print(M, vector1_x, vector1_y)
                         else:
                             pass 
                     else:   
@@ -3683,6 +3691,65 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
 
         bpy.ops.ed.undo_push()
         
+
+        return {'FINISHED'}
+
+class MESH_TO_auto_tip(bpy.types.Operator):
+    """"Auto Rotate Tip"""
+    bl_idname = "mesh.auto_rotate_tip"
+    bl_label = "Auto Rotate Tip"
+         
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.my_tool
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['plane']
+        if mytool.up_down == 'UP_':
+            plane_name = 'jawPlane_UP_'
+        else:
+            plane_name = 'jawPlane_DOWN_'
+        plane_object = context.collection.objects[plane_name]
+        plane_location = plane_object.location
+        plane_normal_local = plane_object.data.polygons[0].normal
+        plane_matrix_world = plane_object.matrix_world.copy()
+        plane_normal_world = (plane_matrix_world @ plane_normal_local) - plane_location
+        plane_normal_world.normalize()
+        print('normal', plane_normal_world)
+        if mytool.up_down == 'UP_':
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
+        else:
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
+        
+        for obj in context.collection.objects:
+            if obj.name.startswith('Tooth') and not obj.name.endswith('coord'):
+                obj_matrix_world = obj.matrix_world.copy() 
+                obj_matrix_world_invert = obj_matrix_world.inverted()
+                normal_local = obj_matrix_world_invert @ (plane_normal_world + obj.location)
+                normal_local.normalize()
+                print(normal_local, obj.name)
+                theta = -math.atan2(normal_local[0] , -normal_local[1]) 
+                print(theta * (180 / math.pi))
+                bpy.ops.object.select_all(action='DESELECT')
+                context.view_layer.objects.active = obj
+                obj.select_set(True)
+                bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
+                bpy.ops.transform.create_orientation(name="local_orient", use=True)
+                bpy.context.scene.transform_orientation_slots[0].type = 'local_orient'
+                orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
+                orientation_matirx.transpose()
+                a = (orientation_matirx.row[0][0], orientation_matirx.row[0][1], orientation_matirx.row[0][2])
+                b = (orientation_matirx.row[1][0], orientation_matirx.row[1][1], orientation_matirx.row[1][2])
+                c = (orientation_matirx.row[2][0], orientation_matirx.row[2][1], orientation_matirx.row[2][2])
+                bpy.ops.transform.delete_orientation()
+                bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
+                bpy.context.space_data.show_gizmo_object_translate = True
+                bpy.context.space_data.show_gizmo_object_rotate = False
+
+                bpy.ops.transform.rotate(value=-theta, orient_axis='Z', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, False, True), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+                
+                bpy.ops.object.select_all(action='DESELECT')
+
+                
+
 
         return {'FINISHED'}
 
@@ -3732,7 +3799,60 @@ class MESH_TO_put_on_brackets(bpy.types.Operator):
         bpy.ops.ed.undo_push()
 
         return {'FINISHED'}
+
+class WM_OT_inter_capacity(bpy.types.Operator):
+    """"Adjust Intercalation Capacity"""
+    bl_idname = "wm.inter_capacity"
+    bl_label = "Intercalation Capacity"
     
+    intercalation1 : bpy.props.FloatProperty(name="Capacity", default=1)
+         
+    def execute(self, context):
+        bpy.ops.mesh.primitive_cube_add()
+        return {'FINISHED'} 
+    
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_popup(self, event)
+
+class MESH_TO_test(bpy.types.Operator):
+    """"Test"""
+    bl_idname = "mesh.test"
+    bl_label = "Test"
+
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.my_tool
+        if mytool.up_down == 'UP_':
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
+        else:
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
+        
+        mian_objcet = context.collection.objects['C2104043_s0_U_']
+        M = mian_objcet.matrix_world
+        curve_object = context.collection.objects['9']
+        N = curve_object.matrix_world
+        location = curve_object.location
+        vertices = mian_objcet.data.vertices
+        for vrt in curve_object.data.vertices:
+            loca = N @ vrt.co
+            disp = loca - location
+            distance_ = math.sqrt(disp[0] * disp[0] + disp[1] * disp[1] + disp[2] * disp[2])
+            if distance_ < 9:
+                # vrt.select = True
+                min_dis = 100
+                min_index = 0
+                for vert in curve_object.data.vertices:
+                    loca_ = N @ vert.co
+                    disp1 = loca - loca_
+                    distance_ = math.sqrt(disp1[0] * disp1[0] + disp1[1] * disp1[1] + disp1[2] * disp1[2])
+                    if distance_ < min_dis:
+                        min_dis = distance_
+                        min_index = vrt.index
+                vertices[min_index].select = True
+
+                        
+
+        return {'FINISHED'}
 class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -3844,16 +3964,19 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
 
         # change local Frame orientation buttons
         row = self.layout.row(align=True)
-        draw_annotate = row.operator('mesh.draw_annotate', text='', icon='GREASEPENCIL')
-        generate_coordinate = row.operator('mesh.generate_coordinate', text='', icon='OUTLINER_OB_EMPTY')
-        applyOrientation = row.operator('mesh.apply_orientation', text='', icon='CHECKMARK')
+        # draw_annotate = row.operator('mesh.draw_annotate', text='', icon='GREASEPENCIL')
+        # generate_coordinate = row.operator('mesh.generate_coordinate', text='', icon='OUTLINER_OB_EMPTY')
         changeOrientation = row.operator('mesh.change_local_orientation', text='', icon='ORIENTATION_GIMBAL')
         filp_z_orientation = row.operator('mesh.filp_z_orientation', text='', icon='MOD_TRIANGULATE')
+        applyOrientation = row.operator('mesh.apply_orientation', text='', icon='CHECKMARK')
+        
+        self.layout.separator()
+        row = self.layout.row(align=True)
         generate_adjust_arch = row.operator('mesh.generate_adjust_arch', text='Generate Arch')
         automatic_arrange = row.operator('mesh.automatic_arrange', text='Automatic Arrange')
         row = self.layout.row(align=True)
         complement_teeth_bottom = row.operator('mesh.complement_teet_bottom', text='Complement Bottom')
-
+        intercalation_capacity = row.operator('wm.inter_capacity', text='Intercalation Capacity')
         # draw emboss region curve
         row = self.layout.row(align=True)
         find_curves = row.operator('mesh.find_emboss_curves', text='Find Curves')
@@ -3873,6 +3996,7 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         # row = self.layout.row(align=True)
         # put_on_brackets = row.operator('mesh.put_on_brackets', text='Put On Brackets')
     
+
 def exec_read_global_peremeter(commend,key):
     _locals = locals()
     exec(commend,globals(),_locals)
@@ -4106,6 +4230,9 @@ classes = [MESH_TO_smooth_tooth_edge,
     MESH_TO_apply_auto_orientation,
     MESH_TO_pick_orientation,
     MESH_TO_apply_picked_orientation,
+    WM_OT_inter_capacity,
+    MESH_TO_auto_tip,
+    MESH_TO_test,
 ]
 
 def register():
