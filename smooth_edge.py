@@ -24,6 +24,7 @@ import re
 import os
 import json
 import getpass
+from hilbertsort import HilbertSort3D
 
 dir = os.path.expanduser('~')+'\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\zhangzechu'
 if not dir in sys.path:
@@ -1494,19 +1495,77 @@ class MESH_TO_adjust_curve(bpy.types.Operator):
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
 
+                obj = bpy.context.object
+                vertices = obj.data.vertices
                 a = []
-                b = []
+                b = [] 
+                c = []
                 for edge_key in obj.data.edge_keys:
                     a.append(edge_key[0])
                     a.append(edge_key[1])
-                if len(a) != 2*len(obj.data.vertices):
-                    a.sort()
-                    print(a)
-                    from collections import Counter
-                    b = dict(Counter(a))
-                    b.append([key for key, value in b.items() if value > 2])
-                    for elem in b :
-                        pass
+                a.sort()
+                print(a)
+                from collections import Counter
+                count = dict(Counter(a))
+                b.append([key for key, value in count.items() if value == 4])
+                c.append([key for key, value in count.items() if value == 1])
+                print('b:',b)
+                print('c:',c)
+
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='DESELECT')
+                bpy.context.tool_settings.mesh_select_mode = (True, False, False)   
+                bpy.ops.object.mode_set(mode='OBJECT')
+
+                for index in c[0]:
+                    vertices[index].select = True
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.delete(type='VERT')
+                bpy.ops.object.mode_set(mode='OBJECT')
+
+                if len(b[0]) == 1:
+                    first_vertex = b[0][0]
+                    connect_vertex = b[0][0]
+                    edge_keys = obj.data.edge_keys.copy()
+                    point = []
+                    for i in range(len(obj.data.vertices)):
+                        for edge_key in edge_keys:
+                            if edge_key[0] == connect_vertex:
+                                print('connect_vertex', connect_vertex)
+
+                                connect_vertex = edge_key[1]
+                                edge_keys.remove(edge_key)
+                                print('edge_key',edge_key)
+                                break
+                            if edge_key[1] == connect_vertex:
+                                print('connect_vertex', connect_vertex)
+                                connect_vertex = edge_key[0]
+                                edge_keys.remove(edge_key)
+                                print('edge_key',edge_key)
+                                break
+                        print('last vertex',connect_vertex)
+                        if connect_vertex != first_vertex:
+                            point.append(connect_vertex)
+                        else:
+                            break
+                        print('edge_keys', edge_keys)
+                        print('===============')
+                    if len(point) > 7:
+                        point.append(first_vertex)
+                        for index in point:
+                            vertices[index].select = True
+                        bpy.ops.object.mode_set(mode='EDIT')
+                        bpy.ops.mesh.select_all(action='INVERT')
+                        bpy.ops.mesh.delete(type='VERT')
+                    else:
+                        for index in point:
+                            vertices[index].select = True
+                        bpy.ops.object.mode_set(mode='EDIT')
+                        bpy.ops.mesh.delete(type='VERT') 
+                    bpy.ops.object.mode_set(mode='OBJECT')    
+                    print('point',point)
+
+                if len(b[0]) == 2:
                         
                         
                         
@@ -3833,26 +3892,55 @@ class MESH_TO_test(bpy.types.Operator):
         N = curve_object.matrix_world
         location = curve_object.location
         vertices = mian_objcet.data.vertices
+        vrt_list = []
+        for vert in vertices:
+            vert_co = M @ vert.co
+            disp = vert_co - location
+            distance = math.sqrt(disp[0] * disp[0] + disp[1] * disp[1] + disp[2] * disp[2])
+            if distance < 8:
+                vrt_list.append(vert.index)
+        print(vrt_list)
+        index_co = dict()
+        np_co_list = []    
         for vrt in curve_object.data.vertices:
             loca = N @ vrt.co
-            disp = loca - location
-            distance_ = math.sqrt(disp[0] * disp[0] + disp[1] * disp[1] + disp[2] * disp[2])
-            if distance_ < 9:
-                # vrt.select = True
-                min_dis = 100
-                min_index = 0
-                for vert in curve_object.data.vertices:
-                    loca_ = N @ vert.co
-                    disp1 = loca - loca_
-                    distance_ = math.sqrt(disp1[0] * disp1[0] + disp1[1] * disp1[1] + disp1[2] * disp1[2])
-                    if distance_ < min_dis:
-                        min_dis = distance_
-                        min_index = vrt.index
-                vertices[min_index].select = True
+            min_dis = 100
+            min_index = 0
+            for index in vrt_list:
+                loca_1 = M @ vertices[index].co
+                disp_1 = loca - loca_1
+                dis = math.sqrt(disp_1[0] * disp_1[0] + disp_1[1] * disp_1[1] + disp_1[2] * disp_1[2])
+                if dis < min_dis:
+                    min_dis = dis
+                    min_index = index
+            vertices[min_index].select  = True
+            np_co = np.array([vertices[min_index].co[0], vertices[min_index].co[1], vertices[min_index].co[2]])
+            np_co_list.append(np_co)
+            index_co[min_index] = np_co
+        np_co_array = np.array(np_co_list)
+        print('numpy coordinate array', np_co_array)
+        # Parameters
+        bins = 32
+        radius = 20
+        origin = (0,0,0)
 
-                        
+        # Initiate Sorter
+        sorter = HilbertSort3D(origin=origin, radius=radius, bins=bins)
+
+        # Perform Hilbert Sort
+        sorted_data = sorter.sort(np_co_array)
+        print("Sorted Points:\n", sorted_data)
+
+        a = []
+        for elem1 in sorted_data:
+            for key,value in index_co.items():
+                if elem1[0] == value[0] and elem1[1] == value[1] and elem1[2] == value[2]:
+                    a.append(key)
+        print(len(a))
+        print(a)
 
         return {'FINISHED'}
+
 class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -3996,7 +4084,6 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         # row = self.layout.row(align=True)
         # put_on_brackets = row.operator('mesh.put_on_brackets', text='Put On Brackets')
     
-
 def exec_read_global_peremeter(commend,key):
     _locals = locals()
     exec(commend,globals(),_locals)
