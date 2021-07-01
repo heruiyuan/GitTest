@@ -24,7 +24,6 @@ import re
 import os
 import json
 import getpass
-from hilbertsort import HilbertSort3D
 
 dir = os.path.expanduser('~')+'\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\zhangzechu'
 if not dir in sys.path:
@@ -1531,25 +1530,25 @@ class MESH_TO_adjust_curve(bpy.types.Operator):
                     for i in range(len(obj.data.vertices)):
                         for edge_key in edge_keys:
                             if edge_key[0] == connect_vertex:
-                                print('connect_vertex', connect_vertex)
+                #                print('connect_vertex', connect_vertex)
 
                                 connect_vertex = edge_key[1]
                                 edge_keys.remove(edge_key)
-                                print('edge_key',edge_key)
+                #                print('edge_key',edge_key)
                                 break
                             if edge_key[1] == connect_vertex:
-                                print('connect_vertex', connect_vertex)
+                #                print('connect_vertex', connect_vertex)
                                 connect_vertex = edge_key[0]
                                 edge_keys.remove(edge_key)
-                                print('edge_key',edge_key)
+                #                print('edge_key',edge_key)
                                 break
                         print('last vertex',connect_vertex)
                         if connect_vertex != first_vertex:
                             point.append(connect_vertex)
                         else:
                             break
-                        print('edge_keys', edge_keys)
-                        print('===============')
+                #        print('edge_keys', edge_keys)
+                #        print('===============')
                     if len(point) > 7:
                         point.append(first_vertex)
                         for index in point:
@@ -1563,21 +1562,57 @@ class MESH_TO_adjust_curve(bpy.types.Operator):
                         bpy.ops.object.mode_set(mode='EDIT')
                         bpy.ops.mesh.delete(type='VERT') 
                     bpy.ops.object.mode_set(mode='OBJECT')    
-                    print('point',point)
+                #    print('point',point)
 
                 if len(b[0]) == 2:
+                    first_vertex = b[0][0]
+                    second_vertex = b[0][1]
+                    connect_vertex = b[0][0]
+                    edge_keys = obj.data.edge_keys.copy()
+                    total_point = []
+                    sub_point = []
+                    time = 0
+                    for i in range(len(obj.data.vertices)):
+                        for edge_key in edge_keys:
+                            if edge_key[0] == connect_vertex:
+                #                print('connect_vertex', connect_vertex)
+                                connect_vertex = edge_key[1]
+                                edge_keys.remove(edge_key)
+                #                print('edge_key',edge_key)
+                                break
+                            if edge_key[1] == connect_vertex:
+                #                print('connect_vertex', connect_vertex)
+                                connect_vertex = edge_key[0]
+                                edge_keys.remove(edge_key)
+                #                print('edge_key',edge_key)
+                                break
+                #        print('last vertex',connect_vertex)
+                        sub_point.append(connect_vertex)
+                        if connect_vertex == first_vertex:
+                            sub_point.remove(first_vertex)
+                #            print('back to first_vertex',sub_point)
+                            sub_point.clear()
+                        if connect_vertex == second_vertex:
+                #            print('sub_point',sub_point)
+                            total_point.extend(sub_point)
+                            sub_point.clear()
+                            connect_vertex = first_vertex
+                #        print('edge_keys', edge_keys)
+                #        print('===============')
+                #    print('total_point',total_point)
+                    total_point.append(first_vertex)
+                    for index in total_point:
+                        vertices[index].select = True
+                    bpy.ops.object.mode_set(mode='EDIT')
+                    bpy.ops.mesh.select_all(action='INVERT')
+                    bpy.ops.mesh.delete(type='VERT') 
+                    bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.ops.object.select_all(action='DESELECT')
                         
-                        
-                        
-
-
             for obj in context.collection.objects:
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
 
-  
-
-                
             bpy.ops.object.mode_set(mode = 'EDIT')            # enter 'MESH_EDIT' mode
             bpy.ops.wm.tool_set_by_id(name="builtin.select")
             bpy.context.scene.tool_settings.use_snap = True
