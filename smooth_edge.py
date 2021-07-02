@@ -11,7 +11,7 @@ bl_info = {
     "category": "Mesh",
 }
 import collections
-from types import CodeType
+from types import CodeType, resolve_bases
 from typing import Text
 import bpy
 import mathutils
@@ -30,6 +30,7 @@ if not dir in sys.path:
     sys.path.append(dir)
 
 # from fillToothHole import fillSingleToothHole, fill_all_teeth_hide
+from tip_torque import all_tooth_Tip_Torque
 
 filepath=os.path.expanduser('~')+'/AppData/Roaming/Blender Foundation/Blender/2.83/parameter.json'
 parameterlist=[]
@@ -264,6 +265,18 @@ def conver_gpencil_to_curve(self, context, pencil, type):
     else:
         return None
 
+def get_picked_tooth_name(scene, context):
+    items = [
+    ]
+    if bpy.data.collections.get('Pick_Teeth') is None :
+        pass   
+    else:
+        if len(bpy.data.collections['Pick_Teeth'].objects) > 0:
+            for obj in bpy.data.collections['Pick_Teeth'].objects:
+                items.append((obj.name, obj.name, obj.name))
+    return items
+
+
 class MyProperties(bpy.types.PropertyGroup):
     selected_object_name : bpy.props.StringProperty(name="")
     y_direction : bpy.props.FloatVectorProperty(name="Y axis direction of tooth in local coordinate", subtype='XYZ', precision=2, size=3, default=(0.0, 0.0,0.0))
@@ -317,6 +330,12 @@ class MyProperties(bpy.types.PropertyGroup):
             ('add coordinate', 'add coordinate', 'Save add coordinate stage'),
             ('adjust orientation', 'adjust orientation', 'Save adjust orientation stage'),
         ]
+    )
+
+    picked_tooth_name:bpy.props.EnumProperty(
+        name="Picked Tooth Name",
+        description="Stroe the picked tooth name dynamicly",
+        items=get_picked_tooth_name
     )
 
     press_extrude_button : bpy.props.BoolProperty(name="extrude_press")
@@ -2260,19 +2279,25 @@ class MESH_TO_filp_z_orientation(bpy.types.Operator):
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
 
-        if len(context.selected_objects) == 1 and context.selected_objects[0].name.endswith('_coord'):
-            matrix_local = context.object.matrix_local.copy()
-            M = matrix_local.to_3x3()
-            print(M)
-            M.transpose()
-            print(M)
-            a = (M.row[0][0], M.row[0][1], M.row[0][2])
-            b = (M.row[1][0], M.row[1][1], M.row[1][2])
-            c = (M.row[2][0], M.row[2][1], M.row[2][2])
-            print(a)
-            print(b)
-            print(c)
+        if len(context.selected_objects) == 1 and context.selected_objects[0].name.startswith('Tooth') and not context.selected_objects[0].name.endswith('_coord'):
+        
+            bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
+            bpy.context.scene.transform_orientation_slots[1].type = 'LOCAL'
+            bpy.context.space_data.show_gizmo_object_rotate = False
+            bpy.context.space_data.show_gizmo_object_translate = True
+            bpy.context.scene.tool_settings.use_transform_data_origin = True
+            
+            bpy.ops.transform.create_orientation(name="local_", use=True)
+            local_orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
+            local_orientation_matirx.transpose()
+            # print(normal_orientation_matirx)
+            a = (local_orientation_matirx.row[0][0], local_orientation_matirx.row[0][1], local_orientation_matirx.row[0][2])
+            b = (local_orientation_matirx.row[1][0], local_orientation_matirx.row[1][1], local_orientation_matirx.row[1][2])
+            c = (local_orientation_matirx.row[2][0], local_orientation_matirx.row[2][1], local_orientation_matirx.row[2][2])
+            bpy.ops.transform.delete_orientation()
+            bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
             bpy.ops.transform.rotate(value=3.14159, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+            bpy.context.scene.tool_settings.use_transform_data_origin = False
 
         bpy.ops.ed.undo_push()    
         return {'FINISHED'}
@@ -2291,12 +2316,15 @@ class MESH_TO_change_local_orientation(bpy.types.Operator):
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
 
-        if len(context.selected_objects) == 1:
+        if len(context.selected_objects) == 1 and context.selected_objects[0].name.startswith('Tooth') and not context.selected_objects[0].name.endswith('_coord'):
+            matirx_local = context.object.matrix_local.copy()
             coord_name = context.object.name + '_coord'
-            context.collection.objects[coord_name].hide_set(False)
+            coord_object = context.collection.objects[coord_name]
+            coord_object.hide_set(False)
+            coord_object.matrix_local = matirx_local
             bpy.ops.object.select_all(action='DESELECT')
-            context.view_layer.objects.active = context.collection.objects[coord_name]
-            context.collection.objects[coord_name].select_set(True)
+            context.view_layer.objects.active = coord_object
+            coord_object.select_set(True)
 
             bpy.context.scene.transform_orientation_slots[1].type = 'LOCAL'
             bpy.context.space_data.show_gizmo_object_translate = True
@@ -2542,6 +2570,7 @@ class MESH_TO_automatic_orientation(bpy.types.Operator):
         context.scene.transform_orientation_slots[1].type = 'LOCAL'
         context.space_data.show_gizmo_object_translate = True
         bpy.context.space_data.show_gizmo_object_rotate = True
+        bpy.context.scene.tool_settings.use_snap = False
 
         bpy.ops.ed.undo_push()
         return {'FINISHED'}
@@ -2560,31 +2589,30 @@ class MESH_TO_apply_auto_orientation(bpy.types.Operator):
         else:
             collection_name = 'Curves_D'
 
-        bpy.ops.object.select_all(action='DESELECT')
         context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[collection_name]
+        bpy.ops.object.select_all(action='DESELECT')
+
         for obj in context.collection.objects:
             if obj.name.startswith('Tooth'):
+                context.view_layer.objects.active = obj
+                obj.select_set(True)
                 bpy.data.collections['Collection'].objects.link(obj)
                 context.collection.objects.unlink(obj)
-
-        bpy.ops.object.select_all(action='DESELECT')
-        context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Collection']
-        for obj in context.collection.objects:
-            if obj.name.endswith('_coord'):
-                tooth_name = obj.name.rstrip('_coord')
-                tooth_obj = context.collection.objects[tooth_name]
-                context.view_layer.objects.active = tooth_obj
-                tooth_obj.select_set(True)
+                context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Collection']
+                tooth_name = context.object.name
+                tooth_object = context.object
+                coord_name = tooth_name + '_coord'
+                coord_object = context.collection.objects[coord_name]
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.select_all(action='SELECT')
                 bpy.ops.object.mode_set(mode='OBJECT')
                 bpy.ops.object.select_all(action='DESELECT')    
-                context.view_layer.objects.active = obj
-                obj.select_set(True)
+                context.view_layer.objects.active = coord_object
+                coord_object.select_set(True)
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.select_all(action='DESELECT')
                 bpy.ops.object.mode_set(mode='OBJECT')
-                tooth_obj.select_set(True)
+                tooth_object.select_set(True)
                 bpy.ops.object.join()
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.separate(type='SELECTED')
@@ -2593,15 +2621,16 @@ class MESH_TO_apply_auto_orientation(bpy.types.Operator):
                     if obj.name.endswith('.001'):
                         obj.data.name = tooth_name
                         obj.name = tooth_name
+                bpy.ops.object.select_all(action='DESELECT')
+                context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[collection_name]
+        
+        context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Collection']
+        for obj in context.collection.objects:
+            if obj.name.startswith('Tooth'):
                     bpy.data.collections[collection_name].objects.link(obj)
                     context.collection.objects.unlink(obj)
-                bpy.ops.object.select_all(action='DESELECT')
+        context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[collection_name]
         
-        if mytool.up_down == 'UP_':
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
-        else:
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
-
         for obj in context.collection.objects:
             if obj.name.startswith('Tooth'):
                 if obj.name.endswith('_coord'):
@@ -2613,10 +2642,12 @@ class MESH_TO_apply_auto_orientation(bpy.types.Operator):
                     obj.data.vertices[vrt_index].select = True
                     bpy.ops.object.mode_set(mode='EDIT')
                     bpy.ops.mesh.delete(type='VERT')
-                bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.select_all(action='DESELECT')
 
         context.scene.transform_orientation_slots[1].type = 'LOCAL'
         bpy.context.space_data.show_gizmo_object_rotate = False
+        bpy.context.scene.tool_settings.use_snap = False
         bpy.ops.ed.undo_push()
         return {'FINISHED'}
 
@@ -2691,7 +2722,7 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
         tooth_obj_name_list = []
         for obj in context.collection.objects:
-            if obj.name.startswith('Tooth'):
+            if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
                 tooth_obj_name_list.append(obj.name)
@@ -2703,7 +2734,7 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
                     context.object.data.polygons[result[3]].select = True
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.context.tool_settings.mesh_select_mode = (False, False, True)
-        for i in range(18):
+        for i in range(20):
             bpy.ops.mesh.select_more()
         bpy.ops.mesh.duplicate(mode=1)
         bpy.ops.mesh.separate(type='SELECTED')
@@ -3483,24 +3514,46 @@ class MESH_TO_pick_tooth(bpy.types.Operator):
     bl_idname = "mesh.pick_tooth"
     bl_label = "Pick A Tooth"
 
-    def execute(self, context):
-        scene = context.scene
-        mytool = scene.my_tool
-        if mytool.up_down == 'UP_':
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
-        else:
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
-        
+    def execute(self, context):   
         if len(context.selected_objects) == 1 and context.selected_objects[0].name.startswith('Tooth'):
-            if bpy.data.collections.get('Pick_Teetth') is None:
+            if bpy.data.collections.get('Pick_Teeth') is None:
                 pick_teeth_coll = bpy.data.collections.new('Pick_Teeth')
                 context.scene.collection.children.link(pick_teeth_coll)
 
             bpy.data.collections['Pick_Teeth'].objects.link(context.object)
-            context.collection.objects.unlink(context.object)
+            unlink_coll = context.object.users_collection
+            unlink_coll[0].objects.unlink(context.object)
             context.object.data.name = 'pick_' + context.object.data.name
             context.object.name = 'pick_' + context.object.name
             context.object.hide_set(True)
+            bpy.ops.ed.undo_push()
+
+        return {'FINISHED'}
+
+class MESH_TO_restore(bpy.types.Operator):
+    """"Restore A Select Tooth From Picked Teeth Collection"""
+    bl_idname = "mesh.restore"
+    bl_label = "Restore"
+
+    def execute(self, context): 
+        scene = context.scene
+        mytool = scene.my_tool
+
+        if bpy.data.collections.get('Pick_Teeth'):
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Pick_Teeth']
+            restore_tooth_name = mytool.picked_tooth_name
+            number = int(restore_tooth_name.split('_')[2])
+            if number > 10 and number < 30:
+                link_collection = bpy.data.collections['Curves_U']
+            else:
+                link_collection = bpy.data.collections['Curves_D']
+            restore_object = context.collection.objects[restore_tooth_name]
+            restore_object.hide_set(False)
+            restore_object.data.name = restore_tooth_name.lstrip('pick')
+            restore_object.name = restore_tooth_name.lstrip('pick')
+            link_collection.objects.link(restore_object)
+            context.collection.objects.unlink(restore_object)
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[link_collection.name]
             bpy.ops.ed.undo_push()
 
         return {'FINISHED'}
@@ -3542,7 +3595,7 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
         sum_location = 0
         qunatity = 0
         for idx, obj in enumerate(context.collection.objects):
-            if obj.name.startswith('Tooth'):
+            if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
                 loca = obj.location
                 sum_location = sum_location + loca[2]
                 qunatity = qunatity + 1
@@ -3571,7 +3624,12 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
         dental_arch.name = curve_name
         dental_arch.show_name = True
 
-        dental_arch.location[2] = sum_location / qunatity
+        
+        if mytool.up_down == 'UP_':
+            dental_arch.location[2] = (sum_location / qunatity) - 5
+        else:
+            dental_arch.location[2] = (sum_location / qunatity) + 5
+
         context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
         context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
         bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
@@ -3639,6 +3697,17 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
         bpy.context.object.modifiers["Smooth"].show_in_editmode = True
         bpy.context.object.modifiers["Smooth"].show_on_cage = True
         bpy.context.object.modifiers["Smooth"].factor = 0.7
+
+        bpy.ops.object.modifier_add(type='SKIN')
+
+        if bpy.data.materials.get('Arch') is None:
+            mat = bpy.data.materials.new(name="Arch")
+            mat.diffuse_color = (1, 0.05, 0.2, 1)
+            context.object.active_material = mat
+        else:
+            mat = bpy.data.materials['Arch']
+            context.object.active_material = mat
+
         bpy.ops.object.mode_set(mode='EDIT')
 
         bpy.context.scene.tool_settings.use_snap = False
@@ -3685,102 +3754,105 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
             vertices = dental_arch.data.vertices
             edges = dental_arch.data.edges
 
-            for obj in context.collection.objects:
-                if obj.name.startswith('Tooth') and  not obj.name.endswith('_coord'):
-                    min_dis = 100
-                    min_index = 0
-                    loca = obj.location
-                    tooth_matrix = obj.matrix_world.copy()
-                    tooth_matrix_invert = tooth_matrix.inverted()
-                    for vertice in vertices:
-                        disp = loca - vertice.co
-                        dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
-                        if dis < 5: 
-                            if dis < min_dis:
-                                min_dis = dis
-                                min_index = vertice.index
-                    vrt_x = vertices[min_index].co[0]  
-                    vrt_y = vertices[min_index].co[1]
-                    obj.location[0] = vrt_x
-                    obj.location[1] = vrt_y
 
-                    a = []
-                    for edge in edges:
-                        if edge.vertices[0] == min_index :
-                            a.append(edge.vertices[1])
-                        if edge.vertices[1] == min_index :
-                            a.append(edge.vertices[0])
+            tip_torque_list  = all_tooth_Tip_Torque(compate_tip=True, compate_torque=True)
+            print(tip_torque_list)
+            # for obj in context.collection.objects:
+            #     if obj.name.startswith('Tooth') and  not obj.name.endswith('_coord'):
+            #         min_dis = 100
+            #         min_index = 0
+            #         loca = obj.location
+            #         tooth_matrix = obj.matrix_world.copy()
+            #         tooth_matrix_invert = tooth_matrix.inverted()
+            #         for vertice in vertices:
+            #             disp = loca - vertice.co
+            #             dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
+            #             if dis < 5: 
+            #                 if dis < min_dis:
+            #                     min_dis = dis
+            #                     min_index = vertice.index
+            #         vrt_x = vertices[min_index].co[0]  
+            #         vrt_y = vertices[min_index].co[1]
+            #         obj.location[0] = vrt_x
+            #         obj.location[1] = vrt_y
+
+            #         a = []
+            #         for edge in edges:
+            #             if edge.vertices[0] == min_index :
+            #                 a.append(edge.vertices[1])
+            #             if edge.vertices[1] == min_index :
+            #                 a.append(edge.vertices[0])
             
-                    vertices[a[0]].select = True
-                    vertices[a[1]].select = True
+            #         vertices[a[0]].select = True
+            #         vertices[a[1]].select = True
 
-                    x1 = vertices[a[0]].co[0]
-                    y1 = vertices[a[0]].co[1]
+            #         x1 = vertices[a[0]].co[0]
+            #         y1 = vertices[a[0]].co[1]
 
-                    x2 = vertices[a[1]].co[0]
-                    y2 = vertices[a[1]].co[1]
-                    if (x2 - x1) != 0:
-                        k = (y2 - y1) / (x2 - x1)
-                        if k != 0:
-                            k2 = -(1/k)
-                            b2 = vertices[min_index].co[1] - vertices[min_index].co[0] * k2
-                            print('k is :', k, k2, obj.name)
-                            point_x = 0
-                            point_y = b2
-                            point_z = vertices[min_index].co[2]
+            #         x2 = vertices[a[1]].co[0]
+            #         y2 = vertices[a[1]].co[1]
+            #         if (x2 - x1) != 0:
+            #             k = (y2 - y1) / (x2 - x1)
+            #             if k != 0:
+            #                 k2 = -(1/k)
+            #                 b2 = vertices[min_index].co[1] - vertices[min_index].co[0] * k2
+            #                 print('k is :', k, k2, obj.name)
+            #                 point_x = 0
+            #                 point_y = b2
+            #                 point_z = vertices[min_index].co[2]
                             
-                            vector1_x = point_x - vertices[min_index].co[0]
-                            vector1_y = point_y - vertices[min_index].co[1]
+            #                 vector1_x = point_x - vertices[min_index].co[0]
+            #                 vector1_y = point_y - vertices[min_index].co[1]
 
-                            print('Point', vector1_x, vector1_y)
+            #                 print('Point', vector1_x, vector1_y)
                     
-                            M = obj.matrix_local.copy()
-                            M = M.to_3x3()
-                            M.transpose()
-                            print(M)
-                            vector2_x = M.row[2][0]
-                            vector2_y = M.row[2][1]
-                            len1 = math.sqrt((vector1_x * vector1_x) + (vector1_y * vector1_y))
-                            len2 = math.sqrt((vector2_x * vector2_x) + (vector2_y * vector2_y))
-                            vector1_x = vector1_x / len1
-                            vector1_y = vector1_y / len1
-                            vector2_x = vector2_x / len2
-                            vector2_y = vector2_y / len2
+            #                 M = obj.matrix_local.copy()
+            #                 M = M.to_3x3()
+            #                 M.transpose()
+            #                 print(M)
+            #                 vector2_x = M.row[2][0]
+            #                 vector2_y = M.row[2][1]
+            #                 len1 = math.sqrt((vector1_x * vector1_x) + (vector1_y * vector1_y))
+            #                 len2 = math.sqrt((vector2_x * vector2_x) + (vector2_y * vector2_y))
+            #                 vector1_x = vector1_x / len1
+            #                 vector1_y = vector1_y / len1
+            #                 vector2_x = vector2_x / len2
+            #                 vector2_y = vector2_y / len2
                             
-                            dot = vector1_x * vector2_x + vector1_y * vector2_y 
-                            theta  = math.acos(dot)
-                            P_N = vector2_x * vector1_y - vector1_x * vector2_y
-                            print(obj.name,theta/math.pi*180, P_N)
-                            print('========================')
-                            if mytool.up_down == 'UP_':
-                                if P_N < 0:
-                                    theta = -theta
-                            else:   
-                                if P_N > 0:
-                                    theta = -theta
-                            bpy.ops.object.select_all(action='DESELECT')
-                            context.view_layer.objects.active = obj
-                            obj.select_set(True)
+            #                 dot = vector1_x * vector2_x + vector1_y * vector2_y 
+            #                 theta  = math.acos(dot)
+            #                 P_N = vector2_x * vector1_y - vector1_x * vector2_y
+            #                 print(obj.name,theta/math.pi*180, P_N)
+            #                 print('========================')
+            #                 if mytool.up_down == 'UP_':
+            #                     if P_N < 0:
+            #                         theta = -theta
+            #                 else:   
+            #                     if P_N > 0:
+            #                         theta = -theta
+            #                 bpy.ops.object.select_all(action='DESELECT')
+            #                 context.view_layer.objects.active = obj
+            #                 obj.select_set(True)
 
-                            bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
-                            bpy.ops.transform.create_orientation(name="local_orient", use=True)
-                            orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
-                            orientation_matirx.transpose()
-                            a = (orientation_matirx.row[0][0], orientation_matirx.row[0][1], orientation_matirx.row[0][2])
-                            b = (orientation_matirx.row[1][0], orientation_matirx.row[1][1], orientation_matirx.row[1][2])
-                            c = (orientation_matirx.row[2][0], orientation_matirx.row[2][1], orientation_matirx.row[2][2])
-                            bpy.ops.transform.delete_orientation()
-                            bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
-                            bpy.context.space_data.show_gizmo_object_translate = True
+            #                 bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
+            #                 bpy.ops.transform.create_orientation(name="local_orient", use=True)
+            #                 orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
+            #                 orientation_matirx.transpose()
+            #                 a = (orientation_matirx.row[0][0], orientation_matirx.row[0][1], orientation_matirx.row[0][2])
+            #                 b = (orientation_matirx.row[1][0], orientation_matirx.row[1][1], orientation_matirx.row[1][2])
+            #                 c = (orientation_matirx.row[2][0], orientation_matirx.row[2][1], orientation_matirx.row[2][2])
+            #                 bpy.ops.transform.delete_orientation()
+            #                 bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
+            #                 bpy.context.space_data.show_gizmo_object_translate = True
 
-                            bpy.ops.transform.rotate(value=theta, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                            bpy.ops.object.select_all(action='DESELECT')
+            #                 bpy.ops.transform.rotate(value=theta, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+            #                 bpy.ops.object.select_all(action='DESELECT')
 
-                            # print(M, vector1_x, vector1_y)
-                        else:
-                            pass 
-                    else:   
-                        pass
+            #                 # print(M, vector1_x, vector1_y)
+            #             else:
+            #                 pass 
+            #         else:   
+            #             pass
 
 
         bpy.ops.ed.undo_push()
@@ -4077,7 +4149,10 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         D_38 = row.prop(mytool, 'D_38', text='38', toggle=1)
         row = self.layout.row(align=True)
         sort_teeth = row.operator('mesh.sort_teeth', text='Sort Teeth')
+        row = self.layout.row(align=True)
         pick_tooth = row.operator('mesh.pick_tooth', text='Pick Tooth')
+        picked_tooth = row.prop(mytool, 'picked_tooth_name', text='')
+        restore = row.operator('mesh.restore', text='Restore')
 
         row = self.layout.row(align=True)
         auto_orientation = row.operator('mesh.auto_orientation', text='Auto Orientation')
@@ -4099,7 +4174,7 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         automatic_arrange = row.operator('mesh.automatic_arrange', text='Automatic Arrange')
         row = self.layout.row(align=True)
         complement_teeth_bottom = row.operator('mesh.complement_teet_bottom', text='Complement Bottom')
-        intercalation_capacity = row.operator('wm.inter_capacity', text='Intercalation Capacity')
+        # intercalation_capacity = row.operator('wm.inter_capacity', text='Intercalation Capacity')
         # draw emboss region curve
         row = self.layout.row(align=True)
         find_curves = row.operator('mesh.find_emboss_curves', text='Find Curves')
@@ -4344,6 +4419,7 @@ classes = [MESH_TO_smooth_tooth_edge,
     MESH_TO_seperate_Teeth,
     MESH_TO_sort_teeth,
     MESH_TO_pick_tooth,
+    MESH_TO_restore,
     MESH_TO_complement_tooth_bottom,
     MESH_TO_put_on_brackets,
     MESH_TO_automatic_arrange_teeth,
