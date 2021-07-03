@@ -2718,34 +2718,33 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
-
-        bpy.ops.object.select_all(action='DESELECT')
         tooth_obj_name_list = []
+        bpy.ops.object.select_all(action='DESELECT')
         for obj in context.collection.objects:
             if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
-                context.view_layer.objects.active = obj
-                obj.select_set(True)
                 tooth_obj_name_list.append(obj.name)
-                origin = mathutils.Vector((0, 0, 0))
-                direction_z = mathutils.Vector((0, 0, 1))
-                dis = 10
-                result = obj.ray_cast(origin, direction_z, distance=dis, depsgraph=None)
-                if result[0] == True: 
-                    context.object.data.polygons[result[3]].select = True
+                for face in obj.data.polygons:
+                    if face.center[2] > 0.3:
+                        face.select = True
+        for obj in context.collection.objects:
+            context.view_layer.objects.active = obj
+            obj.select_set(True) 
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.context.tool_settings.mesh_select_mode = (False, False, True)
-        for i in range(20):
-            bpy.ops.mesh.select_more()
         bpy.ops.mesh.duplicate(mode=1)
         bpy.ops.mesh.separate(type='SELECTED')
-        bpy.context.tool_settings.mesh_select_mode = (True, False, False)
         bpy.ops.object.mode_set(mode='OBJECT')
         bpy.ops.object.select_all(action='DESELECT')
-                
+
+        number_list = [11, 12, 13, 21, 22, 23, 31, 32, 33, 41, 42, 43]
         for tooth_name in tooth_obj_name_list:
             inside_obj_name = tooth_name + '.001'
             main_obj = context.collection.objects[inside_obj_name]
-    
+            context.view_layer.objects.active = main_obj
+            main_obj.select_set(True)
+            number = int(tooth_name.split('_')[1])
+            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+ 
             vertices = main_obj.data.vertices
             bound_box = main_obj.bound_box
 
@@ -2753,108 +2752,186 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
             half_length_x = abs(bound_box[0][0])
             half_length_y = abs(bound_box[0][1])
 
+            middle_index_list = []
             y_co_list = dict()
-            pos_x_co_list = dict()
-            neg_x_co_list = dict()
-            for vrt in vertices:
-                if abs(vrt.co[0]) < 0.2 :
-                    y_co_list[vrt.index] = vrt.co[1]
-                if abs(vrt.co[0] - 0.7 * half_length_x) < 0.2:
-                    pos_x_co_list[vrt.index] = vrt.co[1]
-                if abs(vrt.co[0] - 0.7 * (-half_length_x)) < 0.2:
-                    neg_x_co_list[vrt.index] = vrt.co[1]
-            sorted_list = sorted(y_co_list.items(), key=lambda item:item[1], reverse=True)
-            sorted_list_pos = sorted(pos_x_co_list.items(), key=lambda item:item[1], reverse=True)
-            sorted_list_neg = sorted(neg_x_co_list.items(), key=lambda item:item[1], reverse=True)
-
-            max_y = sorted_list[0][1]
-            min_y = sorted_list[len(sorted_list)-1][1]
-
-            max_y_pos = sorted_list_pos[0][1]
-            min_y_pos = sorted_list_pos[len(sorted_list_pos)-1][1]
-                
-            max_y_neg = sorted_list_neg[0][1]
-            min_y_neg = sorted_list_neg[len(sorted_list_neg)-1][1]
-
+            pos_y_co_list = dict()
+            neg_y_co_list = dict()
             six_vertice = []
-            up_index = []
-            down_index = []
-            for elem in sorted_list:
-                if elem[1] < max_y * 0.8 and elem[1] > max_y * 0.65:
-                    up_index.append(elem[0])
-                if elem[1] > min_y * 0.8 and elem[1] < min_y * 0.65:
-                    down_index.append(elem[0])
+            if number in number_list:
+                for vrt in vertices:
+                    if abs(vrt.co[0]) < 0.2 :
+                        y_co_list[vrt.index] = vrt.co[1]
+                sorted_list = sorted(y_co_list.items(), key=lambda item:item[1], reverse=True)
+                max_y = sorted_list[0][1]
+                min_y = sorted_list[len(sorted_list)-1][1]
 
-            temp_z = -100
-            max_z_index = 0
-            for idx in up_index:
-                if vertices[idx].co[2] > temp_z:
-                    temp_z = vertices[idx].co[2]
-                    max_z_index = idx
-            six_vertice.append(max_z_index)
+                up_y_co = 0.6 * min_y
+                down_y_co = 0.4 * max_y
 
-            temp_y = -100
-            max_y_index = 0
-            for idx in down_index:
-                if vertices[idx].co[1] > temp_y:
-                    temp_y = vertices[idx].co[1]
-                    max_y_index = idx
-            six_vertice.append(max_y_index)
+                up_index = []
+                down_index = []
+                for elem in sorted_list:
+                    if abs(elem[1] - 0.5 * max_y) < 0.2:
+                        down_index.append(elem[0])
+                    if abs(elem[1] - 0.9 * min_y) < 0.2:
+                        up_index.append(elem[0])
+                    
+                temp_z = -100
+                max_z_index = 0
+                for idx in up_index:
+                    if vertices[idx].co[2] > temp_z:
+                        temp_z = vertices[idx].co[2]
+                        max_z_index = idx
+                six_vertice.append(max_z_index)
 
+                temp_z = -100
+                max_z_index = 0
+                for idx in down_index:
+                    if vertices[idx].co[2] > temp_z:
+                        temp_z = vertices[idx].co[2]
+                        max_z_index = idx
+                six_vertice.append(max_z_index)
 
-            # pos_x_vertices
-            pos_up_index = []
-            pos_down_index = []
-            for elem in sorted_list_pos:
-                if abs(elem[1] - 0.5 * max_y_pos) < 0.2:
-                    pos_up_index.append(elem[0])
-                if abs(elem[1] - 0.5 * min_y_pos) < 0.2:
-                    pos_down_index.append(elem[0])
+                pos_dis = 100   
+                pos_nes_index = 0
+                neg_dis = 100
+                neg_nes_index = 0
+                d_pos_dis = 100
+                d_pos_nes_index = 0
+                d_neg_dis = 100
+                d_neg_nes_index = 0
+                for vrt in vertices:
+                    if abs(vrt.co[1] - up_y_co) < 0.2:
+                        p_dis = abs(vrt.co[0] - 2.3)
+                        n_dis = abs(vrt.co[0] - (-2.3))
+                        if p_dis < pos_dis:
+                            pos_dis = p_dis
+                            pos_nes_index = vrt.index
+                        if n_dis < neg_dis:
+                            neg_dis = n_dis
+                            neg_nes_index = vrt.index
+
+                    if abs(vrt.co[1] - down_y_co) < 0.2:
+                        p_dis = abs(vrt.co[0] - 1.8)
+                        n_dis = abs(vrt.co[0] - (-1.8))
+                        if p_dis < d_pos_dis:
+                            d_pos_dis = p_dis
+                            d_pos_nes_index = vrt.index
+                        if n_dis < d_neg_dis:
+                            d_neg_dis = n_dis
+                            d_neg_nes_index = vrt.index
+
+                six_vertice.append(pos_nes_index)
+                six_vertice.append(neg_nes_index)
+                six_vertice.append(d_pos_nes_index)
+                six_vertice.append(d_neg_nes_index)
+
+                # exchange vertices sequence
+                six_vertice[1], six_vertice[3] = six_vertice[3], six_vertice[1]
+                six_vertice[2], six_vertice[5] = six_vertice[5], six_vertice[2]
+            else:
+                for vrt in vertices:
+                    if abs(vrt.co[0]) < 0.2 :
+                        if vrt.co[2] > 0:
+                            y_co_list[vrt.index] = vrt.co[1]
+                    if abs(vrt.co[0] - 0.65 * half_length_x) < 0.2 :
+                            pos_y_co_list[vrt.index] = vrt.co[1]
+                    if abs(vrt.co[0] - 0.65 * (-half_length_x)) < 0.2 :
+                            neg_y_co_list[vrt.index] = vrt.co[1]
                 
-            temp_z = -100
-            max_z_index = 0
-            for idx in pos_up_index:
-                if vertices[idx].co[2] > temp_z:
-                    temp_z = vertices[idx].co[1]
-                    max_z_index = idx
-            six_vertice.append(max_z_index)
+                sorted_list = sorted(y_co_list.items(), key=lambda item:item[1], reverse=True)
+                max_y = sorted_list[0][1]
+                min_y = sorted_list[len(sorted_list)-1][1]
 
-            temp_z = -100
-            max_z_inde = 0
-            for idx in pos_down_index:
-                if vertices[idx].co[2] > temp_z:
-                    temp_z = vertices[idx].co[1]
-                    max_z_index = idx
-            six_vertice.append(max_z_index)
-
-            # negitive x vertices
-            neg_up_index = []
-            neg_down_index = []
-            for elem in sorted_list_neg:
-                if abs(elem[1] - 0.5 * max_y_neg) < 0.2:
-                    neg_up_index.append(elem[0])
-                if abs(elem[1] - 0.5 * min_y_neg) < 0.2:
-                    neg_down_index.append(elem[0])
-                
-            temp_z = -100
-            max_z_inde = 0
-            for idx in neg_up_index:
-                if vertices[idx].co[2] > temp_z:
-                    temp_z = vertices[idx].co[1]
-                    max_z_index = idx
-            six_vertice.append(max_z_index)
-
-
-            temp_z = -100
-            max_z_inde = 0
-            for idx in neg_down_index:
-                if vertices[idx].co[2] > temp_z:
-                    temp_z = vertices[idx].co[1]
-                    max_z_index = idx
-            six_vertice.append(max_z_index)
+                pos_sorted_list = sorted(pos_y_co_list.items(), key=lambda item:item[1], reverse=True)
+                neg_sorted_list = sorted(neg_y_co_list.items(), key=lambda item:item[1], reverse=True)
             
-            context.view_layer.objects.active = main_obj
-            main_obj.select_set(True)
+                pos_max_y = pos_sorted_list[0][1]
+                pos_min_y = pos_sorted_list[len(pos_sorted_list)-1][1]
+
+                neg_max_y = neg_sorted_list[0][1]
+                neg_min_y = neg_sorted_list[len(neg_sorted_list)-1][1]
+
+
+                up_index = []
+                down_index = []
+                for elem in sorted_list:
+                    if abs(elem[1] - 0.45 * max_y) < 0.2:
+                        down_index.append(elem[0])
+                    if abs(elem[1] - 0.65 * min_y) < 0.2:
+                        up_index.append(elem[0])
+                    
+                temp_z = -100
+                max_z_index = 0
+                for idx in up_index:
+                    if vertices[idx].co[2] > temp_z:
+                        temp_z = vertices[idx].co[2]
+                        max_z_index = idx
+                six_vertice.append(max_z_index)
+
+                temp_z = -100
+                max_z_index = 0
+                for idx in down_index:
+                    if vertices[idx].co[2] > temp_z:
+                        temp_z = vertices[idx].co[2]
+                        max_z_index = idx
+                six_vertice.append(max_z_index)
+
+                # negitive x vertices
+                neg_up_index = []
+                neg_down_index = []
+                for elem in neg_sorted_list:
+                    if abs(elem[1] - 0.3 * neg_max_y) < 0.2:
+                        neg_down_index.append(elem[0])
+                    if abs(elem[1] - 0.8 * neg_min_y) < 0.2:
+                        neg_up_index.append(elem[0])
+
+                temp_z = -100
+                max_z_index = 0
+                for idx in neg_up_index:
+                    if vertices[idx].co[2] > temp_z:
+                        temp_z = vertices[idx].co[2]
+                        max_z_index = idx
+                six_vertice.append(max_z_index)
+
+                temp_z = -100
+                max_z_index = 0
+                for idx in neg_down_index:
+                    if vertices[idx].co[2] > temp_z:
+                        temp_z = vertices[idx].co[2]
+                        max_z_index = idx
+                six_vertice.append(max_z_index)
+
+                # pos_x_vertices
+                pos_up_index = []
+                pos_down_index = []
+                for elem in pos_sorted_list:
+                    if abs(elem[1] - 0.3 * pos_max_y) < 0.2:
+                        pos_down_index.append(elem[0])
+                    if abs(elem[1] - 0.8 * pos_min_y) < 0.2:
+                        pos_up_index.append(elem[0])
+                    
+                temp_z = -100
+                max_z_index = 0
+                for idx in pos_up_index:
+                    if vertices[idx].co[2] > temp_z:
+                        temp_z = vertices[idx].co[2]
+                        max_z_index = idx
+                six_vertice.append(max_z_index)
+
+                temp_z = -100
+                max_z_index = 0
+                for idx in pos_down_index:
+                    if vertices[idx].co[2] > temp_z:
+                        temp_z = vertices[idx].co[2]
+                        max_z_index = idx
+                six_vertice.append(max_z_index)
+
+                # exchange vertices sequence
+                six_vertice[1], six_vertice[2] = six_vertice[2], six_vertice[1]
+                six_vertice[2], six_vertice[3] = six_vertice[3], six_vertice[2]
+                six_vertice[4], six_vertice[5] = six_vertice[5], six_vertice[4]
+
             bpy.ops.object.vertex_group_add()
             main_obj.vertex_groups['Group'].name = 'emboss_curve'
 
@@ -2863,55 +2940,20 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
             bpy.ops.mesh.select_all(action='DESELECT')
             bpy.ops.object.mode_set(mode='OBJECT')
 
-            vertices[six_vertice[0]].select = True
-            vertices[six_vertice[2]].select = True
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.shortest_path_select(edge_mode='SELECT')
-            bpy.ops.object.vertex_group_assign()
-            bpy.ops.mesh.select_all(action='DESELECT')
-            bpy.ops.object.mode_set(mode='OBJECT')
-
-            vertices[six_vertice[2]].select = True
-            vertices[six_vertice[3]].select = True
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.shortest_path_select(edge_mode='SELECT')
-            bpy.ops.object.vertex_group_assign()
-            bpy.ops.mesh.select_all(action='DESELECT')
-            bpy.ops.object.mode_set(mode='OBJECT')
-
-            vertices[six_vertice[3]].select = True
-            vertices[six_vertice[1]].select = True
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.shortest_path_select(edge_mode='SELECT')
-            bpy.ops.object.vertex_group_assign()
-            bpy.ops.mesh.select_all(action='DESELECT')
-            bpy.ops.object.mode_set(mode='OBJECT')
-
-            vertices[six_vertice[1]].select = True
-            vertices[six_vertice[5]].select = True
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.shortest_path_select(edge_mode='SELECT')
-            bpy.ops.object.vertex_group_assign()
-            bpy.ops.mesh.select_all(action='DESELECT')
-            bpy.ops.object.mode_set(mode='OBJECT')
-
-            vertices[six_vertice[5]].select = True
-            vertices[six_vertice[4]].select = True
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.shortest_path_select(edge_mode='SELECT')
-            bpy.ops.object.vertex_group_assign()
-            bpy.ops.mesh.select_all(action='DESELECT')
-            bpy.ops.object.mode_set(mode='OBJECT')
-
-            vertices[six_vertice[4]].select = True
-            vertices[six_vertice[0]].select = True
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.shortest_path_select(edge_mode='SELECT')
-            bpy.ops.object.vertex_group_assign()
-            bpy.ops.mesh.select_all(action='DESELECT')
-            bpy.ops.object.mode_set(mode='OBJECT')
-
+            for index in range(len(six_vertice)):                
+                if index == 5:                
+                    vertices[six_vertice[index]].select = True
+                    vertices[six_vertice[0]].select = True
+                else:
+                    vertices[six_vertice[index]].select = True
+                    vertices[six_vertice[index+1]].select = True
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.shortest_path_select(edge_mode='SELECT')
+                bpy.ops.object.vertex_group_assign()
+                bpy.ops.mesh.select_all(action='DESELECT')
+                bpy.ops.object.mode_set(mode='OBJECT')
             
+
             bpy.ops.object.mode_set(mode='EDIT')
             bpy.ops.object.vertex_group_select()
             bpy.ops.mesh.loop_to_region()
@@ -2926,18 +2968,20 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
             bpy.ops.object.delete()
             
             emboss_curve_name = tooth_name + '.002' 
-            # context.collection.objects[emboss_curve_name].data.name = 'emboss_' + tooth_name
-            # context.collection.objects[emboss_curve_name].name = 'emboss_' + tooth_name
-
             emboss_curve_obj = context.collection.objects[emboss_curve_name]
+            emboss_curve_obj.data.name = 'emboss_' + tooth_name
+            emboss_curve_obj.name = 'emboss_' + tooth_name
+
             context.view_layer.objects.active = emboss_curve_obj
             emboss_curve_obj.select_set(True)
 
             bpy.ops.object.mode_set(mode='EDIT')
             bpy.context.tool_settings.mesh_select_mode = (True, False, False)
             bpy.ops.mesh.select_all(action='SELECT')
-            bpy.ops.mesh.dissolve_degenerate(threshold=0.05)
+            bpy.ops.mesh.vertices_smooth(factor=0.5, repeat=37)
+            bpy.ops.mesh.dissolve_degenerate(threshold=0.01)
             bpy.ops.mesh.unsubdivide()
+            bpy.ops.mesh.remove_doubles(threshold=0.9)
 
             bpy.ops.object.modifier_add(type='SUBSURF')
             bpy.context.object.modifiers["Subdivision"].levels = 3
@@ -2951,18 +2995,18 @@ class MESH_TO_find_emboss_curves(bpy.types.Operator):
             bpy.context.object.modifiers["Shrinkwrap"].show_on_cage = True
 
             bpy.ops.object.modifier_add(type='SMOOTH')
-            bpy.context.object.modifiers["Smooth"].iterations = 10
+            bpy.context.object.modifiers["Smooth"].iterations = 15
             bpy.context.object.modifiers["Smooth"].show_in_editmode = True
             bpy.context.object.modifiers["Smooth"].show_on_cage = True
             bpy.context.object.modifiers["Smooth"].factor = 0.5
 
             bpy.ops.object.mode_set(mode='OBJECT')
-            context.object.data.name = 'emboss_' + tooth_name
-            context.object.name = 'emboss_' + tooth_name
+            context.object.data.name = 'curve_' + tooth_name
+            context.object.name = 'curve_' + tooth_name
             bpy.ops.object.select_all(action='DESELECT')
 
         for obj in context.collection.objects:
-            if obj.name.startswith('emboss'):
+            if obj.name.startswith('curve_'):
                 obj.select_set(True)
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='DESELECT')
@@ -2978,7 +3022,7 @@ class MESH_TO_draw_region_curve(bpy.types.Operator):
     bl_label = "Draw Curve"
     
     def execute(self, context):
-        if len(context.selected_objects) == 1:
+        if len(context.selected_objects) == 1 and context.selected_objects[0].name.startswith('Tooth') and not context.selected_objects[0].name.endswith('_coord'):
             scene = context.scene
             mytool = scene.my_tool
 
@@ -3054,7 +3098,6 @@ class MESH_TO_apply_curve(bpy.types.Operator):
             selected_obejcts_list = context.selected_objects.copy()
             bpy.ops.object.select_all(action='DESELECT')
             for obj in selected_obejcts_list:
-                # if obj.name == 'curve_Tooth_22':
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
                 tooth_object_name = obj.name.lstrip('curve_')
@@ -3475,7 +3518,7 @@ class MESH_TO_show_teeth(bpy.types.Operator):
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
         
         for obj in context.collection.objects:
-            if obj.name.startswith('Tooth'):
+            if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
                 obj.hide_set(False)
         bpy.ops.ed.undo_push()
         return {'FINISHED'}
@@ -3494,7 +3537,7 @@ class MESH_TO_hide_teeth(bpy.types.Operator):
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
         
         for obj in context.collection.objects:
-            if obj.name.startswith('Tooth'):
+            if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
                 obj.hide_set(True)
         bpy.ops.ed.undo_push()
         return {'FINISHED'}
@@ -3699,6 +3742,9 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
         bpy.context.object.modifiers["Smooth"].factor = 0.7
 
         bpy.ops.object.modifier_add(type='SKIN')
+
+        bpy.ops.object.modifier_add(type='MIRROR')
+        bpy.context.object.modifiers["Mirror"].use_bisect_axis[0] = True
 
         if bpy.data.materials.get('Arch') is None:
             mat = bpy.data.materials.new(name="Arch")
