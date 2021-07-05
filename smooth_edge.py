@@ -30,8 +30,8 @@ if not dir in sys.path:
     sys.path.append(dir)
 
 # from fillToothHole import fillSingleToothHole, fill_all_teeth_hide
-from tip_torque import all_tooth_Tip_Torque
-
+from tip_torque import select_tooth_Tip_Torque
+from tip_torque import get_tooth_surface_matrix
 filepath=os.path.expanduser('~')+'/AppData/Roaming/Blender Foundation/Blender/2.83/parameter.json'
 parameterlist=[]
 with open(filepath, 'r') as f:
@@ -3767,7 +3767,7 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
 class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
     """"Automatic Arrange Teeth"""
     bl_idname = "mesh.automatic_arrange"
-    bl_label = "Automatic Arrage"
+    bl_label = "Auto Arrage"
 
     def execute(self, context):
         scene = context.scene
@@ -3775,9 +3775,11 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
 
         if context.mode == 'EDIT_MESH':  
             bpy.ops.object.mode_set(mode='OBJECT')
-            
-            bpy.ops.object.convert(target='MESH')
+            bpy.ops.object.duplicate()
+            bpy.ops.object.modifier_remove(modifier="Skin")
 
+            bpy.ops.object.convert(target='MESH')
+            
             dental_arch = context.object
 
             bpy.ops.object.mode_set(mode='EDIT')
@@ -3800,27 +3802,34 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
             vertices = dental_arch.data.vertices
             edges = dental_arch.data.edges
 
+            bpy.ops.object.select_all(action='DESELECT')
+            for obj in context.collection.objects:
+                if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
+                    context.view_layer.objects.active = obj
+                    obj.select_set(True) 
+                    tip_torque_dict = select_tooth_Tip_Torque(compate_tip=True, compate_torque=True)
+                    parameters_list = tip_torque_dict[obj.name]
+                    print(parameters_list[0], parameters_list[1], parameters_list[2])
 
-            tip_torque_list  = all_tooth_Tip_Torque(compate_tip=True, compate_torque=True)
-            print(tip_torque_list)
-            # for obj in context.collection.objects:
-            #     if obj.name.startswith('Tooth') and  not obj.name.endswith('_coord'):
-            #         min_dis = 100
-            #         min_index = 0
-            #         loca = obj.location
-            #         tooth_matrix = obj.matrix_world.copy()
-            #         tooth_matrix_invert = tooth_matrix.inverted()
-            #         for vertice in vertices:
-            #             disp = loca - vertice.co
-            #             dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
-            #             if dis < 5: 
-            #                 if dis < min_dis:
-            #                     min_dis = dis
-            #                     min_index = vertice.index
-            #         vrt_x = vertices[min_index].co[0]  
-            #         vrt_y = vertices[min_index].co[1]
-            #         obj.location[0] = vrt_x
-            #         obj.location[1] = vrt_y
+                    min_dis = 100
+                    min_index = 0
+                    loca = obj.location
+                    tooth_matrix = obj.matrix_world.copy()
+                    tooth_matrix_invert = tooth_matrix.inverted()
+                    for vertice in vertices:
+                        disp = loca - vertice.co
+                        dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
+                        if dis < 5: 
+                            if dis < min_dis:
+                                min_dis = dis
+                                min_index = vertice.index
+                    vrt_x = vertices[min_index].co[0]  
+                    vrt_y = vertices[min_index].co[1]
+                    obj.location[0] = vrt_x
+                    obj.location[1] = vrt_y
+
+
+                    
 
             #         a = []
             #         for edge in edges:
@@ -3904,6 +3913,37 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
         bpy.ops.ed.undo_push()
         
 
+        return {'FINISHED'}
+
+class MESH_TO_edit_arch(bpy.types.Operator):
+    """"Edit Arch"""
+    bl_idname = "mesh.edit_arch"
+    bl_label = "Edit Arch"
+
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.my_tool
+
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Arch']
+        if mytool.up_down == 'UP_':
+            arch_name = 'up_arch'
+        else:
+            arch_name = 'down_arch'
+
+        if context.mode == 'EDIT_MESH':  
+            bpy.ops.object.mode_set(mode='OBJECT')
+        
+        bpy.ops.object.select_all(action='DESELECT')
+        arch_object = context.collection.objects.get(arch_name)
+        if arch_object is not None:
+            arch_object = context.collection.objects[arch_name]
+            context.view_layer.objects.active = arch_object
+            arch_object.select_set(True) 
+            bpy.ops.object.mode_set(mode='EDIT')
+        else:
+            print('There is not arch object!')
+
+        bpy.ops.ed.undo_push()
         return {'FINISHED'}
 
 class MESH_TO_auto_tip(bpy.types.Operator):
@@ -4217,7 +4257,8 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         self.layout.separator()
         row = self.layout.row(align=True)
         generate_adjust_arch = row.operator('mesh.generate_adjust_arch', text='Generate Arch')
-        automatic_arrange = row.operator('mesh.automatic_arrange', text='Automatic Arrange')
+        automatic_arrange = row.operator('mesh.automatic_arrange', text='Auto Arrange')
+        edit_arch = row.operator('mesh.edit_arch', text='', icon='EDITMODE_HLT')
         row = self.layout.row(align=True)
         complement_teeth_bottom = row.operator('mesh.complement_teet_bottom', text='Complement Bottom')
         # intercalation_capacity = row.operator('wm.inter_capacity', text='Intercalation Capacity')
@@ -4477,6 +4518,7 @@ classes = [MESH_TO_smooth_tooth_edge,
     WM_OT_inter_capacity,
     MESH_TO_auto_tip,
     MESH_TO_test,
+    MESH_TO_edit_arch,
 ]
 
 def register():
