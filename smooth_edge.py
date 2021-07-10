@@ -276,6 +276,27 @@ def get_picked_tooth_name(scene, context):
                 items.append((obj.name, obj.name, obj.name))
     return items
 
+def get_bound_box_volume(object):
+    ref_box = object.bound_box
+    x = ref_box[0][0]
+    y = ref_box[0][1]
+    z = ref_box[0][2]
+    x_ = 0
+    y_ = 0
+    z_ = 0
+    for vertex in ref_box:
+        if vertex[0] != x:
+            x_ = vertex[0]
+        if vertex[1] != y:
+            y_ = vertex[1]
+        if vertex[2] != z:
+            z_ = vertex[2]
+    len_x = abs(x - x_)
+    len_y = abs(y - y_)
+    len_z = abs(z - z_)
+    volume = len_x * len_y * len_z
+    print('box_info  ', object.name, len_x, len_y, len_z, volume)
+    return volume
 
 class MyProperties(bpy.types.PropertyGroup):
     selected_object_name : bpy.props.StringProperty(name="")
@@ -2461,116 +2482,125 @@ class MESH_TO_automatic_orientation(bpy.types.Operator):
                 bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
 
                 bpy.ops.object.mode_set(mode='EDIT')
-                bpy.context.tool_settings.mesh_select_mode = (False, False, True)
-                bpy.ops.mesh.select_all(action='DESELECT')
-                bpy.ops.object.mode_set(mode='OBJECT')
-
-                face_index = []
-                for face in obj.data.polygons:
-                    if mytool.up_down == 'UP_':
-                        if face.center[2] > 2:
-                            face.select = True
-                    else:
-                        if face.center[2] < -2:
-                            face.select = True
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.duplicate()
-                bpy.ops.mesh.separate(type='SELECTED')
-                bpy.ops.object.mode_set(mode='OBJECT')
-                sys_gaven_name = obj.name + '.001'
-                obj_copy = context.collection.objects[sys_gaven_name]
-                bpy.data.collections['Collection'].objects.link(obj_copy)
-                context.collection.objects.unlink(obj_copy)
-                context.view_layer.objects.active = obj_copy
-                bpy.ops.object.select_all(action='DESELECT')
-                obj_copy.select_set(True)
-                obj_copy.data.name = tooth_name + '_part'   
-                obj_copy.name = tooth_name + '_part'
-                obj_copy.data.polygons[0].select = True
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.select_linked(delimit={'SEAM'})
-                bpy.ops.mesh.separate(type='SELECTED')
-                bpy.ops.object.mode_set(mode='OBJECT')
-                bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
-                if len(context.selected_objects) == 2:
-                    loca1 = context.selected_objects[0].location
-                    loca2 = context.selected_objects[1].location
-                    seq = []
-                    seq.append(loca1)
-                    seq.append(loca2)
-                    seq.append(tooth_loca)
-                    print(seq)
-                    x_axis_orient = mathutils.geometry.normal(seq)
-                    x_axis_orient.normalize()
-                    print(tooth_name, x_axis_orient)
-                    bpy.ops.object.delete(use_global=True, confirm=False)   
-                bpy.ops.object.select_all(action='DESELECT')
-
-                context.view_layer.objects.active = obj
-                obj.select_set(True)
-
-                bpy.ops.object.mode_set(mode='EDIT')
                 bpy.context.tool_settings.mesh_select_mode = (True, False, False)
-                bpy.ops.mesh.select_all(action='DESELECT')
-                bpy.ops.mesh.select_non_manifold()
+                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.mesh.region_to_loop()
                 bpy.ops.mesh.looptools_relax(input='selected', interpolation='cubic', iterations='25', regular=True)
                 bpy.ops.mesh.edge_face_add()
                 bpy.ops.mesh.poke(offset=1, use_relative_offset=True, center_mode='BOUNDS')
                 bpy.ops.mesh.select_all(action='DESELECT')
                 bpy.ops.object.mode_set(mode='OBJECT')
-                # bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
-                last_vertice = obj.data.vertices[len(obj.data.vertices)-1]
-                last_vertice.select = True
-                y_axis_orient = last_vertice.co.copy()
-                y_axis_orient.normalize()
-                print('y axis:', y_axis_orient)
-                z_axis_orient = y_axis_orient.cross(x_axis_orient)
-                print(z_axis_orient)
-                x_axis_orient = y_axis_orient.cross(z_axis_orient)
-                print(x_axis_orient)
-                M = mathutils.Matrix([x_axis_orient, y_axis_orient, z_axis_orient])
-                M.transpose()
-                M.normalize()
-                M = M.to_4x4()
+                bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+                
+                  
 
-                N = obj.matrix_local.copy()
-                M.row[0][3] = N.row[0][3]
-                M.row[1][3] = N.row[1][3]
-                M.row[2][3] = N.row[2][3]
 
-                bpy.ops.object.select_all(action='DESELECT')
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Collection']
-                context.view_layer.objects.active = context.collection.objects['Vert']
-                context.collection.objects['Vert'].select_set(True)  
-                bpy.ops.object.duplicate()
-                coord_object = context.object
-                coord_object.matrix_local = M 
-                coord_object.data.name = tooth_name + '_coord'
-                coord_object.name = tooth_name + '_coord'
+        #         face_index = []
+        #         for face in obj.data.polygons:
+        #             if mytool.up_down == 'UP_':
+        #                 if face.center[2] > 2:
+        #                     face.select = True
+        #             else:
+        #                 if face.center[2] < -2:
+        #                     face.select = True
+        #         bpy.ops.object.mode_set(mode='EDIT')
+        #         bpy.ops.mesh.duplicate()
+        #         bpy.ops.mesh.separate(type='SELECTED')
+        #         bpy.ops.object.mode_set(mode='OBJECT')
+        #         sys_gaven_name = obj.name + '.001'
+        #         obj_copy = context.collection.objects[sys_gaven_name]
+        #         bpy.data.collections['Collection'].objects.link(obj_copy)
+        #         context.collection.objects.unlink(obj_copy)
+        #         context.view_layer.objects.active = obj_copy
+        #         bpy.ops.object.select_all(action='DESELECT')
+        #         obj_copy.select_set(True)
+        #         obj_copy.data.name = tooth_name + '_part'   
+        #         obj_copy.name = tooth_name + '_part'
+        #         obj_copy.data.polygons[0].select = True
+        #         bpy.ops.object.mode_set(mode='EDIT')
+        #         bpy.ops.mesh.select_linked(delimit={'SEAM'})
+        #         bpy.ops.mesh.separate(type='SELECTED')
+        #         bpy.ops.object.mode_set(mode='OBJECT')
+        #         bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+        #         if len(context.selected_objects) == 2:
+        #             loca1 = context.selected_objects[0].location
+        #             loca2 = context.selected_objects[1].location
+        #             seq = []
+        #             seq.append(loca1)
+        #             seq.append(loca2)
+        #             seq.append(tooth_loca)
+        #             print(seq)
+        #             x_axis_orient = mathutils.geometry.normal(seq)
+        #             x_axis_orient.normalize()
+        #             print(tooth_name, x_axis_orient)
+        #             bpy.ops.object.delete(use_global=True, confirm=False)   
+        #         bpy.ops.object.select_all(action='DESELECT')
 
-                bpy.ops.object.select_all(action='DESELECT')
-                context.view_layer.objects.active = coord_object
-                coord_object.select_set(True)  
-                if coord_object.matrix_local.row[1][2] < 0:
-                    matrix_local = coord_object.matrix_local.copy()
-                    M = matrix_local.to_3x3()
-                    M.transpose()
-                    a = (M.row[0][0], M.row[0][1], M.row[0][2])
-                    b = (M.row[1][0], M.row[1][1], M.row[1][2])
-                    c = (M.row[2][0], M.row[2][1], M.row[2][2])
-                    bpy.ops.transform.rotate(value=3.14159, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                bpy.ops.object.select_all(action='DESELECT')
+        #         context.view_layer.objects.active = obj
+        #         obj.select_set(True)
 
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[collection_name]
+        #         bpy.ops.object.mode_set(mode='EDIT')
+        #         bpy.context.tool_settings.mesh_select_mode = (True, False, False)
+        #         bpy.ops.mesh.select_all(action='DESELECT')
+        #         bpy.ops.mesh.select_non_manifold()
+        #         bpy.ops.mesh.looptools_relax(input='selected', interpolation='cubic', iterations='25', regular=True)
+        #         bpy.ops.mesh.edge_face_add()
+        #         bpy.ops.mesh.poke(offset=1, use_relative_offset=True, center_mode='BOUNDS')
+        #         bpy.ops.mesh.select_all(action='DESELECT')
+        #         bpy.ops.object.mode_set(mode='OBJECT')
+        #         # bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
+        #         last_vertice = obj.data.vertices[len(obj.data.vertices)-1]
+        #         last_vertice.select = True
+        #         y_axis_orient = last_vertice.co.copy()
+        #         y_axis_orient.normalize()
+        #         print('y axis:', y_axis_orient)
+        #         z_axis_orient = y_axis_orient.cross(x_axis_orient)
+        #         print(z_axis_orient)
+        #         x_axis_orient = y_axis_orient.cross(z_axis_orient)
+        #         print(x_axis_orient)
+        #         M = mathutils.Matrix([x_axis_orient, y_axis_orient, z_axis_orient])
+        #         M.transpose()
+        #         M.normalize()
+        #         M = M.to_4x4()
+
+        #         N = obj.matrix_local.copy()
+        #         M.row[0][3] = N.row[0][3]
+        #         M.row[1][3] = N.row[1][3]
+        #         M.row[2][3] = N.row[2][3]
+
+        #         bpy.ops.object.select_all(action='DESELECT')
+        #         bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Collection']
+        #         context.view_layer.objects.active = context.collection.objects['Vert']
+        #         context.collection.objects['Vert'].select_set(True)  
+        #         bpy.ops.object.duplicate()
+        #         coord_object = context.object
+        #         coord_object.matrix_local = M 
+        #         coord_object.data.name = tooth_name + '_coord'
+        #         coord_object.name = tooth_name + '_coord'
+
+        #         bpy.ops.object.select_all(action='DESELECT')
+        #         context.view_layer.objects.active = coord_object
+        #         coord_object.select_set(True)  
+        #         if coord_object.matrix_local.row[1][2] < 0:
+        #             matrix_local = coord_object.matrix_local.copy()
+        #             M = matrix_local.to_3x3()
+        #             M.transpose()
+        #             a = (M.row[0][0], M.row[0][1], M.row[0][2])
+        #             b = (M.row[1][0], M.row[1][1], M.row[1][2])
+        #             c = (M.row[2][0], M.row[2][1], M.row[2][2])
+        #             bpy.ops.transform.rotate(value=3.14159, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+        #         bpy.ops.object.select_all(action='DESELECT')
+
+        #         bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[collection_name]
         
-        context.view_layer.objects.active = bpy.data.objects['Vert']
-        bpy.data.objects['Vert'].select_set(True) 
-        bpy.ops.object.delete(use_global=True, confirm=False)
+        # context.view_layer.objects.active = bpy.data.objects['Vert']
+        # bpy.data.objects['Vert'].select_set(True) 
+        # bpy.ops.object.delete(use_global=True, confirm=False)
         
-        context.scene.transform_orientation_slots[1].type = 'LOCAL'
-        context.space_data.show_gizmo_object_translate = True
-        bpy.context.space_data.show_gizmo_object_rotate = True
-        bpy.context.scene.tool_settings.use_snap = False
+        # context.scene.transform_orientation_slots[1].type = 'LOCAL'
+        # context.space_data.show_gizmo_object_translate = True
+        # bpy.context.space_data.show_gizmo_object_rotate = True
+        # bpy.context.scene.tool_settings.use_snap = False
 
         bpy.ops.ed.undo_push()
         return {'FINISHED'}
@@ -3192,14 +3222,12 @@ class MESH_TO_apply_curve(bpy.types.Operator):
                 tooth_object.select_set(True)
                 bpy.ops.object.join()
                 
-
                 bpy.ops.object.mode_set(mode='EDIT')
-
                 bpy.ops.object.vertex_group_add()
                 tooth_object.vertex_groups['Group'].name = 'panel'
                 bpy.ops.object.vertex_group_assign()
 
-                bpy.ops.mesh.intersect()
+                bpy.ops.mesh.intersect(threshold=0.0)
                 bpy.ops.mesh.hide()
                 bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -3213,9 +3241,10 @@ class MESH_TO_apply_curve(bpy.types.Operator):
                 bpy.ops.mesh.select_linked(delimit=set())
                 bpy.ops.mesh.reveal()
 
-                bpy.ops.mesh.duplicate(mode=1)
-                bpy.ops.mesh.separate(type='SELECTED')
-
+                bpy.ops.object.vertex_group_add()
+                tooth_object.vertex_groups['Group'].name = 'inner_plane'
+                bpy.ops.object.vertex_group_assign()
+                
                 bpy.ops.mesh.select_all(action='DESELECT')
                 tooth_object.vertex_groups.active = tooth_object.vertex_groups['panel']
                 bpy.ops.object.vertex_group_select()
@@ -3224,19 +3253,26 @@ class MESH_TO_apply_curve(bpy.types.Operator):
                 bpy.ops.mesh.select_linked(delimit=set())
                 bpy.ops.mesh.delete(type='VERT')
 
+                bpy.ops.mesh.select_all(action='DESELECT')
+                tooth_object.vertex_groups.active = tooth_object.vertex_groups['inner_plane']
+                bpy.ops.object.vertex_group_select()
+                bpy.ops.mesh.duplicate(mode=1)
+                bpy.ops.mesh.separate(type='SELECTED')
                 bpy.ops.object.mode_set(mode='OBJECT')
                 bpy.ops.object.select_all(action='DESELECT')
-
+                
                 panel_name = tooth_object_name + '.001'
                 panel_object = bpy.data.objects[panel_name]
                 panel_object.data.name = 'panel_' + tooth_object_name
                 panel_object.name = 'panel_' + tooth_object_name
 
-                context.view_layer.objects.active = panel_object
+                context.view_layer.objects.active = panel_object    
                 panel_object.select_set(True)
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.select_all(action='SELECT')
-                bpy.ops.mesh.remove_doubles()
+                bpy.ops.mesh.remove_doubles(threshold=0.005, use_unselected=True)
+                bpy.ops.mesh.region_to_loop()
+                bpy.ops.mesh.dissolve_limited(angle_limit=3.14)
                 bpy.ops.mesh.select_all(action='DESELECT')
                 bpy.ops.object.mode_set(mode='OBJECT')
                 bpy.ops.object.select_all(action='DESELECT')
@@ -3290,11 +3326,12 @@ class MESH_TO_exturde_emboss_panel(bpy.types.Operator):
                 tooth_object = context.collection.objects[tooth_name]
 
                 bpy.ops.object.mode_set(mode='EDIT')
-                bpy.context.tool_settings.mesh_select_mode = (True, False, False)
-                bpy.ops.mesh.select_all(action='DESELECT')
-                bpy.ops.mesh.select_non_manifold()
+                bpy.context.tool_settings.mesh_select_mode = (False, True, False)
+                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.mesh.region_to_loop()
                 bpy.ops.mesh.duplicate(mode=1)
                 bpy.ops.mesh.separate(type='SELECTED')
+                bpy.context.tool_settings.mesh_select_mode = (True, False, False)
                 bpy.ops.object.mode_set(mode='OBJECT')
                 for object in context.selected_objects:
                     if object.name.endswith('.001'):
@@ -3305,26 +3342,11 @@ class MESH_TO_exturde_emboss_panel(bpy.types.Operator):
                     else:
                         object.select_set(False)
                 bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
-                polygons = bpy.context.object.data.polygons
-                if len(polygons) != 0:
-                    for face in polygons:
-                        face.select = True
-                    bpy.ops.object.mode_set(mode='EDIT')
-                    bpy.ops.object.vertex_group_add()
-                    context.object.vertex_groups['Group'].name = 'delete_tri'
-                    bpy.ops.object.vertex_group_assign()
-                    bpy.ops.mesh.delete(type='EDGE')
-                    bpy.ops.object.vertex_group_select()
-                    bpy.ops.object.vertex_group_remove()
-                    bpy.ops.mesh.edge_face_add()
-                    bpy.ops.object.mode_set(mode='OBJECT')
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.select_all(action='SELECT')
                 bpy.ops.mesh.looptools_space(influence=100, input='selected', interpolation='cubic', lock_x=False, lock_y=False, lock_z=False)
                 bpy.ops.object.mode_set(mode='OBJECT')
                 ref_curve_object = context.object
-
-                
                 bpy.ops.object.duplicate()
                 ref_curve_object.select_set(True)
                 bpy.ops.object.convert(target='CURVE')
@@ -3338,47 +3360,67 @@ class MESH_TO_exturde_emboss_panel(bpy.types.Operator):
                         curve.data.offset = -0.3
                     else:
                         curve.select_set(False)
+                bpy.ops.object.select_all(action='DESELECT') 
 
-                # bpy.ops.object.modifier_add(type='SHRINKWRAP')
-                # bpy.context.object.modifiers["Shrinkwrap"].wrap_method = 'TARGET_PROJECT'
-                # bpy.context.object.modifiers["Shrinkwrap"].target = obj
+        for obj in context.collection.objects:
+            if obj.name.startswith('emCurve') and not obj.name.endswith('.001'):
+                small_curve_name = obj.name + '.001'
+                small_curve_object = context.collection.objects[small_curve_name]
+                tooth_name = obj.name.lstrip('emCurve_')
+                tooth_object = context.collection.objects[tooth_name]
+                panel_name = 'panel_' + tooth_name
+                panel_object = context.collection.objects[panel_name]
+                ref_volume = get_bound_box_volume(obj)
+                small_volume = get_bound_box_volume(small_curve_object)
+                context.view_layer.objects.active = small_curve_object
+                small_curve_object.select_set(True)
+                if small_volume > ref_volume:
+                    print('Need to change direction object', obj.name)
+                    bpy.ops.object.mode_set(mode='EDIT')
+                    bpy.ops.curve.switch_direction()
+                    bpy.ops.object.mode_set(mode='OBJECT')
+
+                bpy.ops.object.modifier_add(type='SHRINKWRAP')
+                bpy.context.object.modifiers["Shrinkwrap"].wrap_method = 'TARGET_PROJECT'
+                bpy.context.object.modifiers["Shrinkwrap"].target = panel_object
 
                 # bpy.ops.object.modifier_add(type='SMOOTH')
                 # bpy.context.object.modifiers["Smooth"].iterations = 100
                 # bpy.context.object.modifiers["Smooth"].factor = 0.7
 
-                # bpy.ops.object.convert(target='MESH')
-                # bpy.ops.object.mode_set(mode='EDIT')
-                # bpy.ops.mesh.select_all(action='SELECT')
-                # bpy.ops.mesh.remove_doubles(threshold=0.01)
-                # bpy.ops.mesh.looptools_space(influence=100, input='selected', interpolation='cubic', lock_x=False, lock_y=False, lock_z=False)
-                # bpy.ops.mesh.select_all(action='DESELECT')
-                # bpy.ops.object.mode_set(mode='OBJECT')
-                # bpy.ops.object.select_all(action='DESELECT')
-                # context.view_layer.objects.active = ref_curve_object
-                # ref_curve_object.select_set(True)
-                # bpy.ops.object.delete(use_global=False, confirm=True)
+                bpy.ops.object.convert(target='MESH')
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.mesh.remove_doubles(threshold=0.01)
+                bpy.ops.mesh.looptools_space(influence=100, input='selected', interpolation='cubic', lock_x=False, lock_y=False, lock_z=False)
+                bpy.ops.mesh.select_all(action='DESELECT')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.ops.object.select_all(action='DESELECT')
+                context.view_layer.objects.active = obj
+                obj.select_set(True)
+                bpy.ops.object.delete(use_global=False, confirm=True)
                 bpy.ops.object.select_all(action='DESELECT')    
 
-                # context.view_layer.objects.active = obj
-                # obj.select_set(True)
+                context.view_layer.objects.active = panel_object
+                panel_object.select_set(True)
 
-                # bpy.ops.object.modifier_add(type='SOLIDIFY')
-                # bpy.context.object.modifiers["Solidify"].thickness = 1
-                # bpy.context.object.modifiers["Solidify"].offset = 0
-                # bpy.context.object.modifiers["Solidify"].use_even_offset = True
+                bpy.ops.object.modifier_add(type='SOLIDIFY')
+                bpy.context.object.modifiers["Solidify"].thickness = 1
+                bpy.context.object.modifiers["Solidify"].offset = 0
+                bpy.context.object.modifiers["Solidify"].use_even_offset = True
 
-                # bpy.ops.object.modifier_add(type='REMESH')
-                # bpy.context.object.modifiers["Remesh"].voxel_size = 0.05
+                bpy.ops.object.modifier_add(type='REMESH')
+                bpy.context.object.modifiers["Remesh"].voxel_size = 0.1
                 
-                # bpy.ops.object.modifier_add(type='SMOOTH')
-                # bpy.context.object.modifiers["Smooth"].factor = 0.6
-                # bpy.context.object.modifiers["Smooth"].iterations = 150
+                bpy.ops.object.modifier_add(type='SMOOTH')
+                bpy.context.object.modifiers["Smooth"].factor = 0.5
+                bpy.context.object.modifiers["Smooth"].iterations = 100
 
-                # bpy.ops.object.modifier_add(type='BOOLEAN')
-                # bpy.context.object.modifiers["Boolean"].object = tooth_object
+                bpy.ops.object.modifier_add(type='BOOLEAN')
+                bpy.context.object.modifiers["Boolean"].object = tooth_object
 
-                # obj.select_set(False)
+                bpy.ops.object.select_all(action='DESELECT')
+                
         bpy.ops.object.select_all(action='DESELECT')
         self.report({'INFO'}, 'OK!')
         bpy.ops.ed.undo_push()
@@ -3455,7 +3497,8 @@ class MESH_TO_emboss_image(bpy.types.Operator):
                 obj.select_set(True)
 
                 bpy.ops.object.convert(target='MESH')
-                
+                bpy.ops.object.vertex_group_remove(all=True, all_unlocked=False)
+
                 tooth_name = obj.name.lstrip('panel_')
                 tooth_object = context.collection.objects[tooth_name]
 
@@ -3465,42 +3508,30 @@ class MESH_TO_emboss_image(bpy.types.Operator):
                 curve_object = context.collection.objects[curve_name]
                 context.view_layer.objects.active = curve_object
                 curve_object.select_set(True)
-
+                bpy.ops.object.vertex_group_remove(all=True, all_unlocked=False)
                 bpy.context.scene.tool_settings.use_snap = True
 
                 bpy.ops.object.modifier_add(type='SHRINKWRAP')
                 bpy.context.object.modifiers["Shrinkwrap"].target = obj
-                bpy.context.object.modifiers["Shrinkwrap"].wrap_method = 'NEAREST_SURFACEPOINT'
-                bpy.context.object.modifiers["Shrinkwrap"].wrap_mode = 'OUTSIDE_SURFACE'    
-                bpy.context.object.modifiers["Shrinkwrap"].offset = 0.2
-
-                bpy.ops.object.modifier_add(type='SMOOTH')
-                bpy.context.object.modifiers["Smooth"].factor = 0.7
-                bpy.context.object.modifiers["Smooth"].iterations = 20
-
                 bpy.ops.object.convert(target='MESH')
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.select_all(action='SELECT')
                 bpy.ops.mesh.looptools_space(influence=100, input='selected', interpolation='cubic', lock_x=False, lock_y=False, lock_z=False)
                 bpy.ops.object.mode_set(mode='OBJECT')
 
-                bpy.ops.object.duplicate()
                 bpy.ops.object.modifier_add(type='SHRINKWRAP')
                 bpy.context.object.modifiers["Shrinkwrap"].target = obj
                 bpy.context.object.modifiers["Shrinkwrap"].wrap_method = 'NEAREST_SURFACEPOINT'
-                bpy.context.object.modifiers["Shrinkwrap"].wrap_mode = 'OUTSIDE_SURFACE'    
-                bpy.context.object.modifiers["Shrinkwrap"].offset = -0.2
+                bpy.context.object.modifiers["Shrinkwrap"].wrap_mode = 'ABOVE_SURFACE'    
+                bpy.context.object.modifiers["Shrinkwrap"].offset = 0.1
 
                 bpy.ops.object.modifier_add(type='SMOOTH')
-                bpy.context.object.modifiers["Smooth"].factor = 0.7
-                bpy.context.object.modifiers["Smooth"].iterations = 20
+                bpy.context.object.modifiers["Smooth"].iterations = 200
+
+                bpy.ops.object.duplicate()    
+                bpy.context.object.modifiers["Shrinkwrap"].offset = -0.15
 
                 bpy.ops.object.convert(target='MESH')
-
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.select_all(action='SELECT')
-                bpy.ops.mesh.looptools_space(influence=100, input='selected', interpolation='cubic', lock_x=False, lock_y=False, lock_z=False)
-                bpy.ops.object.mode_set(mode='OBJECT')
 
                 context.view_layer.objects.active = curve_object
                 curve_object.select_set(True)
@@ -3515,21 +3546,25 @@ class MESH_TO_emboss_image(bpy.types.Operator):
                 bpy.ops.object.vertex_group_assign()
                 bpy.ops.object.mode_set(mode='OBJECT')
                 bpy.ops.object.select_all(action='DESELECT')
-
-        bpy.ops.ed.undo_push()
-        for obj in context.collection.objects:
-            if obj.name.startswith('panel'):
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
 
                 bpy.context.object.data.remesh_voxel_size = 0.03
                 bpy.context.object.data.use_remesh_smooth_normals = True
                 bpy.ops.object.voxel_remesh()
+                bpy.ops.object.select_all(action='DESELECT')
 
+                bpy.ops.ed.undo_push()
+
+        for obj in context.collection.objects:
+            if obj.name.startswith('panel'):    
                 tooth_name = obj.name.lstrip('panel_')
                 tooth_object = context.collection.objects[tooth_name]
                 curve_name =  'emCurve_' + tooth_name + '.001'
                 curve_object = context.collection.objects[curve_name]
+
+                context.view_layer.objects.active = obj
+                obj.select_set(True)
 
                 curve_object.select_set(True)
 
@@ -3537,7 +3572,19 @@ class MESH_TO_emboss_image(bpy.types.Operator):
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.context.tool_settings.mesh_select_mode = (True, False, False)
                 bpy.ops.mesh.intersect()
-                bpy.ops.mesh.loop_to_region()
+
+                bpy.ops.mesh.hide()
+                bpy.ops.object.mode_set(mode='OBJECT')
+
+                dir = mathutils.Vector((0, 0, 1))
+                dist = 10
+                origin = mathutils.Vector((0, 0, 0))
+                result1 = obj.ray_cast(origin, dir, distance=dist)
+                print(result1)
+                obj.data.polygons[result1[3]].select = True
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_linked(delimit=set())
+                bpy.ops.mesh.reveal()
 
                 bpy.ops.object.vertex_group_add()
                 context.object.vertex_groups['Group'].name = 'inner_panel'
@@ -3558,7 +3605,6 @@ class MESH_TO_emboss_image(bpy.types.Operator):
                 bpy.ops.mesh.unsubdivide(iterations=9)
                 bpy.ops.mesh.select_all(action='INVERT')
                 bpy.ops.object.mode_set(mode='OBJECT')
-                bpy.ops.object.select_all(action='DESELECT')
 
                 bpy.ops.object.modifier_add(type='SHRINKWRAP')
                 context.object.modifiers["Shrinkwrap"].target = tooth_object
@@ -3603,9 +3649,23 @@ class MESH_TO_emboss_image(bpy.types.Operator):
                 else:
                     print('Texture Error !!!')
                 context.object.modifiers['Displace'].texture = texture
+
+                bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
+                bpy.ops.transform.create_orientation(name="local_orient", use=True)
+                orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
+                orientation_matirx.transpose()
+                a = (orientation_matirx.row[0][0], orientation_matirx.row[0][1], orientation_matirx.row[0][2])
+                b = (orientation_matirx.row[1][0], orientation_matirx.row[1][1], orientation_matirx.row[1][2])
+                c = (orientation_matirx.row[2][0], orientation_matirx.row[2][1], orientation_matirx.row[2][2])
+                bpy.ops.transform.delete_orientation()
+                bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
+                bpy.context.scene.tool_settings.use_transform_data_origin = True
+                bpy.ops.transform.rotate(value=3.14159, orient_axis='Z', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, False, True), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+                bpy.context.scene.tool_settings.use_transform_data_origin = False
+
                 bpy.ops.object.select_all(action='DESELECT')
                 print(context.object.name, 'Context name emboss finished!')
-                
+
         bpy.context.scene.tool_settings.use_transform_data_origin = True
         bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
         bpy.context.scene.transform_orientation_slots[1].type = 'LOCAL'
@@ -3661,61 +3721,6 @@ class MESH_TO_apply_emboss(bpy.types.Operator):
 
                 bpy.ops.ed.undo_push()
         return {'FINISHED'}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        # if len(context.selected_objects) == 1 and context.object.name.startswith('panel'):
-        #     context.space_data.show_gizmo_object_translate = False
-        #     context.space_data.show_gizmo_object_rotate = False
-        #     context.scene.tool_settings.use_transform_data_origin = False
-
-        #     if context.object.modifiers[0].name == 'Displace':
-        #         bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Displace")
-
-        #     bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
-        #     if len(bpy.context.object.vertex_groups) != 0:
-        #         bpy.ops.object.vertex_group_remove(all=False, all_unlocked=False)
-            
-        #     context.object.modifiers.new(name='Smooth', type='SMOOTH')
-        #     context.object.modifiers["Smooth"].iterations = 2
-        #     bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Smooth")
-
-        #     context.object.modifiers.new(name='Decimate', type='DECIMATE')
-        #     bpy.context.object.modifiers["Decimate"].ratio = 0.5
-        #     bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Decimate")
-
-        #     context.object.modifiers.new(name='Decimate', type='DECIMATE')
-        #     bpy.context.object.modifiers["Decimate"].ratio = 0.5
-        #     bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Decimate")
-
-        #     bpy.ops.object.shade_smooth()
-
-        #     # Get material
-        #     mat = bpy.data.materials.get("Emboss Color")
-        #     if mat is None:
-        #         # create material
-        #         mat = bpy.data.materials.new(name="Emboss Color")
-        #         mat.diffuse_color =  (0.604, 0.33, 0.906, 1)
-        #         mat.metallic = 0.077
-        #         mat.roughness = 0.234
-        #     bpy.context.object.data.materials.append(mat)
-
 
 class MESH_TO_show_teeth(bpy.types.Operator):
     """"Show Teeth"""
@@ -4487,9 +4492,9 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
                 if context.object.modifiers.get('Solidify'):
                     pops = context.object.modifiers['Solidify']
                     exturde_thinkness = row.prop(pops, 'thickness', text='')
-        # adjust_panel = row.operator('mesh.resize_panel', text='', icon='LIGHT_AREA')
-        # factor = str(round(mytool.factor, 2)) 
-        # row.label(text=factor)
+                if context.object.modifiers.get('Boolean'):
+                    pops = context.object.modifiers['Boolean']
+                    boolean_operation = row.prop(pops, 'operation', text='')
         show_teeth = row.operator('mesh.show_teeth', text='', icon='HIDE_OFF')
         hide_teeth = row.operator('mesh.hide_teeth', text='', icon='HIDE_ON')
         row = self.layout.row(align=True)
