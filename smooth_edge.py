@@ -13,8 +13,11 @@ bl_info = {
 import collections
 from types import CodeType, resolve_bases
 from typing import Text
+
+from numpy.linalg import norm
 import bpy
 import mathutils
+import bmesh
 import math
 import numpy as np
 import sys
@@ -25,6 +28,7 @@ import os
 import json
 import getpass
 
+
 dir = os.path.expanduser('~')+'\\AppData\\Roaming\\Blender Foundation\\Blender\\2.83\\scripts\\addons\\pie_menu_editor\\scripts\\zhangzechu'
 if not dir in sys.path:
     sys.path.append(dir)
@@ -32,6 +36,10 @@ if not dir in sys.path:
 # from fillToothHole import fillSingleToothHole, fill_all_teeth_hide
 from tip_torque import select_tooth_Tip_Torque
 from tip_torque import get_tooth_surface_matrix
+
+from movePanel import recover_homogenous_affine_transformation
+from movePanel import create_plane_three_point
+
 filepath=os.path.expanduser('~')+'/AppData/Roaming/Blender Foundation/Blender/2.83/parameter.json'
 parameterlist=[]
 with open(filepath, 'r') as f:
@@ -752,7 +760,9 @@ class MESH_TO_trim_cut(bpy.types.Operator):
             #changing colour of tool
 
             activeObject = bpy.context.active_object #Set active object to variable
-            mat = bpy.data.materials.new(name="MaterialName") #set new material to variable
+            mat = bpy.data.materials.get("MaterialName")
+            if mat is None:
+                mat = bpy.data.materials.new(name="MaterialName") #set new material to variable
             activeObject.data.materials.append(mat) #add the material to the object
 
             bpy.context.object.active_material.diffuse_color = (0.121583, 0.144091, 0.8, 1)
@@ -2612,7 +2622,7 @@ class MESH_TO_automatic_orientation(bpy.types.Operator):
                         x_dir = temp_dir.cross(z_axis_dir)
                         x_dir.normalize()
                         print('cross_dir', x_dir)
-                        z_dir = z_axis_dir.cross(x_dir)
+                        z_dir = x_dir.cross(z_axis_dir)
                         z_dir.normalize()
                         print('cross_dir', z_dir)
                         M_orient = mathutils.Matrix([x_dir, z_axis_dir, z_dir])
@@ -2648,7 +2658,7 @@ class MESH_TO_automatic_orientation(bpy.types.Operator):
                     world_z_vector.normalize()
                     x_dir = world_z_vector.cross(z_axis_dir)
                     x_dir.normalize()
-                    z_dir = z_axis_dir.cross(x_dir)
+                    z_dir = x_dir.cross(z_axis_dir)
 
                     M_orient = mathutils.Matrix([x_dir, z_axis_dir, z_dir])
                     M_orient.transpose()
@@ -2750,6 +2760,10 @@ class MESH_TO_apply_auto_orientation(bpy.types.Operator):
         for obj in context.collection.objects:
             if obj.name.endswith('_coord'):
                 obj.hide_set(True)
+        
+        for material in bpy.data.materials:
+            if not material.name.startswith('Whole'):
+                bpy.data.materials.remove(material, do_unlink=True, do_id_user=True, do_ui_user=True)
         
         context.scene.transform_orientation_slots[1].type = 'LOCAL'
         bpy.context.space_data.show_gizmo_object_rotate = False
@@ -3936,6 +3950,31 @@ class MESH_TO_complement_tooth_bottom(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class MESH_TO_select_three_points(bpy.types.Operator):
+    """"Pick Three Triangle To Specific A Panel"""
+    bl_idname = "mesh.select_three_points"
+    bl_label = "Select Three Point"
+
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.my_tool
+
+        if mytool.up_down == 'UP_':
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
+        else:
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
+
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in context.collection.objects:
+            if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
+                context.view_layer.objects.active = obj
+                obj.select_set(True)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.context.tool_settings.mesh_select_mode = (False, False, True)
+        bpy.ops.mesh.select_all(action='DESELECT')
+
+        return {'FINISHED'}
+
 class MESH_TO_generate_adjust_arch(bpy.types.Operator):
     """"Generate Teeth Arch Line And Adjust it"""
     bl_idname = "mesh.generate_adjust_arch"
@@ -3948,9 +3987,99 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
         if mytool.up_down == 'UP_':
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
             curve_name = 'up_arch'
+            panel_name = 'up_plane'
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
             curve_name = 'down_arch'
+            panel_name = 'down_plane'
+        
+        if context.mode == 'EDIT_MESH':
+            objectList=bpy.context.selected_objects
+            points = []
+            for ob in objectList:
+                me = ob.data
+                bm = bmesh.new()
+                bm = bmesh.from_edit_mesh(me)
+
+                for f in bm.faces:
+                    if (f.select == True):
+                        obMat = ob.matrix_world
+                        points.append(obMat @ f.calc_center_bounds())
+                
+                bm.free()  # free and prevent further access
+            bpy.ops.mesh.select_all(action='DESELECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
+            bpy.ops.object.select_all(action='DESELECT')
+        
+        if len(points) == 3:
+            panel_loca = (points[0] + points[1] + points[2]) / 3
+            normal = mathutils.geometry.normal(points)
+            if mytool.up_down == 'UP_':
+                if normal[2] > 0:
+                    normal[2] = -normal[2]
+                normal.normalize()
+                y_tem_vec = mathutils.Vector((0, 1, 0))
+                x_dir = y_tem_vec.cross(normal)
+                x_dir.normalize()
+                y_dir = x_dir.cross(normal)
+                y_dir.normalize()
+
+                M_orient = mathutils.Matrix([x_dir, y_dir, normal])
+                M_orient.transpose()
+                M_orient.normalize()
+                M_orient = M_orient.to_4x4()
+
+                M_orient.row[0][3] = panel_loca[0]  
+                M_orient.row[1][3] = panel_loca[1]
+                M_orient.row[2][3] = panel_loca[2]
+
+            else:
+                if normal[2] < 0:
+                    normal[2] = -normal[2]
+                normal.normalize()
+
+                y_tem_vec = mathutils.Vector((0, -1, 0))
+                x_dir = normal.cross(y_tem_vec)
+                x_dir.normalize()
+                y_dir = normal.cross(x_dir)
+                y_dir.normalize()
+
+                M_orient = mathutils.Matrix([x_dir, y_dir, normal])
+                M_orient.transpose()
+                M_orient.normalize()
+                M_orient = M_orient.to_4x4()
+
+                M_orient.row[0][3] = panel_loca[0]  
+                M_orient.row[1][3] = panel_loca[1]
+                M_orient.row[2][3] = panel_loca[2]
+ 
+            print('Panel normal', normal, panel_loca, M_orient)
+            bpy.ops.mesh.primitive_plane_add(size=80, enter_editmode=False, align='WORLD', location=(0, 0, 0))
+            panel_obejct = context.object
+            panel_obejct.data.name = panel_name
+            panel_obejct.name = panel_name
+            panel_obejct.matrix_world = M_orient
+
+            mat = bpy.data.materials.get("MaterialtoothPlane")
+            if mat is None:
+                # create material
+                mat = bpy.data.materials.new(name="MaterialtoothPlane")
+                mat.diffuse_color = (0.8, 0, 0.15, 0.3)
+            panel_obejct.data.materials.append(mat)
+            
+            if bpy.data.collections.get('Plane') is None:
+                plane_coll = bpy.data.collections.new('Plane')
+                context.scene.collection.children.link(plane_coll)
+            bpy.data.collections['Plane'].objects.link(context.object)
+            context.collection.objects.unlink(context.object)
+            bpy.ops.object.select_all(action='DESELECT')
+        else:
+            print('There aren\'t three points selected')
+            return {'CANCELLED'}
+        print('================== Successfully Genertate Plane ========================')
+        
+        
+        # Generate arch and enter edit mode for adjust
         sum_location = 0
         qunatity = 0
         for idx, obj in enumerate(context.collection.objects):
@@ -4064,7 +4193,7 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
 
         if bpy.data.materials.get('Arch') is None:
             mat = bpy.data.materials.new(name="Arch")
-            mat.diffuse_color = (1, 0.05, 0.2, 1)
+            mat.diffuse_color = (0, 0.56, 1, 1)
             context.object.active_material = mat
         else:
             mat = bpy.data.materials['Arch']
@@ -4569,7 +4698,8 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         
         self.layout.separator()
         row = self.layout.row(align=True)
-        generate_adjust_arch = row.operator('mesh.generate_adjust_arch', text='Generate Arch')
+        select_three_points = row.operator('mesh.select_three_points', text='Select Points') 
+        generate_adjust_arch = row.operator('mesh.generate_adjust_arch', text='Arch')
         automatic_arrange = row.operator('mesh.automatic_arrange', text='Auto Arrange')
         edit_arch = row.operator('mesh.edit_arch', text='', icon='EDITMODE_HLT')
         row = self.layout.row(align=True)
@@ -4839,6 +4969,7 @@ classes = [MESH_TO_smooth_tooth_edge,
     MESH_TO_auto_tip,
     MESH_TO_test,
     MESH_TO_edit_arch,
+    MESH_TO_select_three_points,
 ]
 
 def register():
