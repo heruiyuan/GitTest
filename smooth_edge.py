@@ -36,9 +36,16 @@ if not dir in sys.path:
 # from fillToothHole import fillSingleToothHole, fill_all_teeth_hide
 from tip_torque import select_tooth_Tip_Torque
 from tip_torque import get_tooth_surface_matrix
+from tip_torque import ShowMessageBox
+from tip_torque import getTip
+from tip_torque import getTorque
+
 
 from movePanel import recover_homogenous_affine_transformation
 from movePanel import create_plane_three_point
+from movePanel import into_select_faces_mode_jaw
+from movePanel import delete_object
+from movePanel import create_plane
 
 filepath=os.path.expanduser('~')+'/AppData/Roaming/Blender Foundation/Blender/2.83/parameter.json'
 parameterlist=[]
@@ -306,6 +313,17 @@ def get_bound_box_volume(object):
     print('box_info  ', object.name, len_x, len_y, len_z, volume)
     return volume
 
+def tip_11_update(self, context):
+    scene = context.scene
+    mytool = scene.my_tool
+    obj = context.collection.objects['Tooth_11']
+    
+    obj.location[0] = mytool.Tip_11
+         
+def tor_11_update(self, context):
+    print('world')
+
+
 class MyProperties(bpy.types.PropertyGroup):
     selected_object_name : bpy.props.StringProperty(name="")
     y_direction : bpy.props.FloatVectorProperty(name="Y axis direction of tooth in local coordinate", subtype='XYZ', precision=2, size=3, default=(0.0, 0.0,0.0))
@@ -411,6 +429,10 @@ class MyProperties(bpy.types.PropertyGroup):
     D_43: bpy.props.BoolProperty(name="43", description="Lost Tooth 43", default=False)
     D_42: bpy.props.BoolProperty(name="42", description="Lost Tooth 42", default=False)
     D_41: bpy.props.BoolProperty(name="41", description="Lost Tooth 41", default=False)
+
+    UP_tipTorExpand: bpy.props.BoolProperty(name="Tip Tor Expand", description="Expand Tip and Torque Panel", default=False)
+    Tip_11: bpy.props.FloatProperty(name="tip11", description="Tip value of Tooth 11", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=tip_11_update, get=None, set=None)
+    Tor_11: bpy.props.FloatProperty(name="tor11", description="Torque value of Tooth 11", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=tor_11_update, get=None, set=None)
 
 class MESH_TO_ready_seperate_teeth(bpy.types.Operator):
     """Read for seperating teeth"""
@@ -3964,15 +3986,10 @@ class MESH_TO_select_three_points(bpy.types.Operator):
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
 
-        bpy.ops.object.select_all(action='DESELECT')
-        for obj in context.collection.objects:
-            if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
-                context.view_layer.objects.active = obj
-                obj.select_set(True)
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.context.tool_settings.mesh_select_mode = (False, False, True)
-        bpy.ops.mesh.select_all(action='DESELECT')
-
+        jawplaneName = 'jawPlane_' + mytool.up_down
+        delete_object(jawplaneName)
+        into_select_faces_mode_jaw()
+        bpy.ops.ed.undo_push()
         return {'FINISHED'}
 
 class MESH_TO_generate_adjust_arch(bpy.types.Operator):
@@ -3987,98 +4004,27 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
         if mytool.up_down == 'UP_':
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
             curve_name = 'up_arch'
-            panel_name = 'up_plane'
+            jawplaneName = 'jawPlane_' + mytool.up_down
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
             curve_name = 'down_arch'
-            panel_name = 'down_plane'
-        
-        if context.mode == 'EDIT_MESH':
-            objectList=bpy.context.selected_objects
-            points = []
-            for ob in objectList:
-                me = ob.data
-                bm = bmesh.new()
-                bm = bmesh.from_edit_mesh(me)
+            jawplaneName = 'jawPlane_' + mytool.up_down
 
-                for f in bm.faces:
-                    if (f.select == True):
-                        obMat = ob.matrix_world
-                        points.append(obMat @ f.calc_center_bounds())
-                
-                bm.free()  # free and prevent further access
-            bpy.ops.mesh.select_all(action='DESELECT')
-            bpy.ops.object.mode_set(mode='OBJECT')
-            bpy.ops.object.select_all(action='DESELECT')
-        
-        if len(points) == 3:
-            panel_loca = (points[0] + points[1] + points[2]) / 3
-            normal = mathutils.geometry.normal(points)
-            if mytool.up_down == 'UP_':
-                if normal[2] > 0:
-                    normal[2] = -normal[2]
-                normal.normalize()
-                y_tem_vec = mathutils.Vector((0, 1, 0))
-                x_dir = y_tem_vec.cross(normal)
-                x_dir.normalize()
-                y_dir = x_dir.cross(normal)
-                y_dir.normalize()
-
-                M_orient = mathutils.Matrix([x_dir, y_dir, normal])
-                M_orient.transpose()
-                M_orient.normalize()
-                M_orient = M_orient.to_4x4()
-
-                M_orient.row[0][3] = panel_loca[0]  
-                M_orient.row[1][3] = panel_loca[1]
-                M_orient.row[2][3] = panel_loca[2]
-
-            else:
-                if normal[2] < 0:
-                    normal[2] = -normal[2]
-                normal.normalize()
-
-                y_tem_vec = mathutils.Vector((0, -1, 0))
-                x_dir = normal.cross(y_tem_vec)
-                x_dir.normalize()
-                y_dir = normal.cross(x_dir)
-                y_dir.normalize()
-
-                M_orient = mathutils.Matrix([x_dir, y_dir, normal])
-                M_orient.transpose()
-                M_orient.normalize()
-                M_orient = M_orient.to_4x4()
-
-                M_orient.row[0][3] = panel_loca[0]  
-                M_orient.row[1][3] = panel_loca[1]
-                M_orient.row[2][3] = panel_loca[2]
- 
-            print('Panel normal', normal, panel_loca, M_orient)
-            bpy.ops.mesh.primitive_plane_add(size=80, enter_editmode=False, align='WORLD', location=(0, 0, 0))
-            panel_obejct = context.object
-            panel_obejct.data.name = panel_name
-            panel_obejct.name = panel_name
-            panel_obejct.matrix_world = M_orient
-
-            mat = bpy.data.materials.get("MaterialtoothPlane")
-            if mat is None:
-                # create material
-                mat = bpy.data.materials.new(name="MaterialtoothPlane")
-                mat.diffuse_color = (0.8, 0, 0.15, 0.3)
-            panel_obejct.data.materials.append(mat)
-            
-            if bpy.data.collections.get('Plane') is None:
-                plane_coll = bpy.data.collections.new('Plane')
-                context.scene.collection.children.link(plane_coll)
-            bpy.data.collections['Plane'].objects.link(context.object)
-            context.collection.objects.unlink(context.object)
-            bpy.ops.object.select_all(action='DESELECT')
-        else:
-            print('There aren\'t three points selected')
-            return {'CANCELLED'}
+        create_plane(jawplaneName)
+       
         print('================== Successfully Genertate Plane ========================')
         
-        
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in context.collection.objects:
+            if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
+                context.view_layer.objects.active = obj
+                obj.select_set(True)
+                tip_torque_dict = select_tooth_Tip_Torque(compate_tip=True, compate_torque=True)
+                parameters_list = tip_torque_dict[obj.name]
+                print('object name is:', obj.name)
+                print(parameters_list[0], parameters_list[1], parameters_list[2])
+                print('----------------------------------------------------------------------------') 
+
         # Generate arch and enter edit mode for adjust
         sum_location = 0
         qunatity = 0
@@ -4521,62 +4467,68 @@ class MESH_TO_test(bpy.types.Operator):
         mytool = scene.my_tool
         if mytool.up_down == 'UP_':
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
+            jawplaneName = 'jawPlane_' + mytool.up_down
         else:
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
+            jawplaneName = 'jawPlane_' + mytool.up_down
+
+        jaw_plane_object = bpy.data.objects[jawplaneName]
+        loca = jaw_plane_object.location
+        matrix_world = jaw_plane_object.matrix_world    
+        if len(jaw_plane_object.data.polygons) == 1:
+            polygon_normal = jaw_plane_object.data.polygons[0].normal
+            if mytool.up_down == 'UP_':
+                if polygon_normal[2] < 0:
+                    polygon_normal[2] = -polygon_normal[2]
+            else:
+                if polygon_normal[2] > 0:
+                    polygon_normal[2] = -polygon_normal[2]  
+
+            polygon_normal = (matrix_world @ polygon_normal) - loca
+            polygon_normal.normalize()
+            print('polygon normal', polygon_normal)
+        else:
+            print('Jaw polygons has no face normal')
+            return {'CANCELLED'}
+
+        for obj in context.collection.objects:
+            if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
+                context.view_layer.objects.active = obj
+                obj.select_set(True)
+                x_axis = mathutils.Vector((obj.matrix_local.row[0][0], obj.matrix_local.row[1][0], obj.matrix_local.row[2][0]))
+                z_axis = x_axis.cross(polygon_normal)
+                z_axis.normalize()
+                x_axis = polygon_normal.cross(z_axis)
+                x_axis.normalize()
+
+                M_orient = mathutils.Matrix([x_axis, polygon_normal, z_axis])
+                M_orient.transpose()
+                M_orient.normalize()
+                M_orient = M_orient.to_4x4()
+                K_orient = M_orient.copy()
+                
+                N = obj.matrix_local.copy()
+                M_orient.row[0][3] = N.row[0][3]
+                M_orient.row[1][3] = N.row[1][3]
+                M_orient.row[2][3] = N.row[2][3]
+
+                K_orient_inver = K_orient.inverted()
+                obj_y_axis = mathutils.Vector((obj.matrix_local.row[0][1], obj.matrix_local.row[1][1], obj.matrix_local.row[2][1]))
+                local_y_axis = (K_orient_inver @ obj_y_axis)
+
+                print('object name', obj.name)
+                print('local Y axis:',local_y_axis)
+                # mat = get_tooth_surface_matrix(obj)
+                # print(mat)
+                print(M_orient)
+                
+                obj.select_set(False)
+                bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, align='WORLD', location=(0, 0, 0))
+                context.object.matrix_local = M_orient
+                bpy.ops.object.select_all(action='DESELECT')
+
+        mytool.Tip_11 = context.collection.objects['Tooth_11'].location[0]
         
-        mian_objcet = context.collection.objects['C2104043_s0_U_']
-        M = mian_objcet.matrix_world
-        curve_object = context.collection.objects['9']
-        N = curve_object.matrix_world
-        location = curve_object.location
-        vertices = mian_objcet.data.vertices
-        vrt_list = []
-        for vert in vertices:
-            vert_co = M @ vert.co
-            disp = vert_co - location
-            distance = math.sqrt(disp[0] * disp[0] + disp[1] * disp[1] + disp[2] * disp[2])
-            if distance < 8:
-                vrt_list.append(vert.index)
-        print(vrt_list)
-        index_co = dict()
-        np_co_list = []    
-        for vrt in curve_object.data.vertices:
-            loca = N @ vrt.co
-            min_dis = 100
-            min_index = 0
-            for index in vrt_list:
-                loca_1 = M @ vertices[index].co
-                disp_1 = loca - loca_1
-                dis = math.sqrt(disp_1[0] * disp_1[0] + disp_1[1] * disp_1[1] + disp_1[2] * disp_1[2])
-                if dis < min_dis:
-                    min_dis = dis
-                    min_index = index
-            vertices[min_index].select  = True
-            np_co = np.array([vertices[min_index].co[0], vertices[min_index].co[1], vertices[min_index].co[2]])
-            np_co_list.append(np_co)
-            index_co[min_index] = np_co
-        np_co_array = np.array(np_co_list)
-        print('numpy coordinate array', np_co_array)
-        # Parameters
-        bins = 32
-        radius = 20
-        origin = (0,0,0)
-
-        # Initiate Sorter
-        sorter = HilbertSort3D(origin=origin, radius=radius, bins=bins)
-
-        # Perform Hilbert Sort
-        sorted_data = sorter.sort(np_co_array)
-        print("Sorted Points:\n", sorted_data)
-
-        a = []
-        for elem1 in sorted_data:
-            for key,value in index_co.items():
-                if elem1[0] == value[0] and elem1[1] == value[1] and elem1[2] == value[2]:
-                    a.append(key)
-        print(len(a))
-        print(a)
-
         return {'FINISHED'}
 
 class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
@@ -4732,6 +4684,22 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         apply_emboss = row.operator('mesh.apply_emboss', text='', icon='CHECKMARK')
         # row = self.layout.row(align=True)
         # put_on_brackets = row.operator('mesh.put_on_brackets', text='Put On Brackets')
+        if (context.mode == 'OBJECT'):
+            row = self.layout.row()
+            row.prop(mytool, "UP_tipTorExpand",
+                icon="TRIA_DOWN" if mytool.UP_tipTorExpand else "TRIA_RIGHT",
+                icon_only=True, emboss=False
+            )
+            row.label(text='Tip Torque')
+            if mytool.UP_tipTorExpand:
+                box = self.layout.box()
+                row = box.row(align=True)
+                tip_label = row.label(text="Tip", text_ctxt="Tip Value", translate=True, icon='NONE', icon_value=0)
+                tor_label = row.label(text="Torque", text_ctxt="Torque Value", translate=True, icon='NONE', icon_value=0)
+                row = box.row(align=True)
+                Tip_11 = row.prop(mytool, 'Tip_11', text='')
+                Tor_11 = row.prop(mytool, 'Tor_11', text='')
+
     
 def exec_read_global_peremeter(commend,key):
     _locals = locals()
