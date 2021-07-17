@@ -13,6 +13,7 @@ bl_info = {
 import collections
 from types import CodeType, resolve_bases
 from typing import Text
+from numpy.lib import angle
 
 from numpy.linalg import norm
 import bpy
@@ -69,7 +70,7 @@ setnames = locals()
 for key, value in parameterlist.items():  
     setnames[key]=value 
 
-def  exec_read_global_peremeter(commend,key):
+def exec_read_global_peremeter(commend,key):
     _locals = locals()
     exec(commend,globals(),_locals)
     if key in _locals:
@@ -313,17 +314,169 @@ def get_bound_box_volume(object):
     print('box_info  ', object.name, len_x, len_y, len_z, volume)
     return volume
 
-def tip_11_update(self, context):
-    scene = context.scene
-    mytool = scene.my_tool
-    obj = context.collection.objects['Tooth_11']
+def get_plane_ref_coord_matrix(plane_object, tooth_object, up_down):
+    loca = plane_object.location
+    matrix_world = plane_object.matrix_world.copy()    
+    if len(plane_object.data.polygons) == 1:
+        polygon_normal = plane_object.data.polygons[0].normal.copy()
+        if up_down == 'UP_':
+            if polygon_normal[2] < 0:
+                polygon_normal[2] = -polygon_normal[2]
+        else:
+            if polygon_normal[2] > 0:
+                polygon_normal[2] = -polygon_normal[2]  
+
+        polygon_normal = (matrix_world @ polygon_normal) - loca
+        polygon_normal.normalize()
+        print('polygon normal', polygon_normal)
+    else:
+        print('Jaw polygons has no face normal')
+        return {'CANCELLED'}
+
+    x_axis = mathutils.Vector((tooth_object.matrix_local.row[0][0], tooth_object.matrix_local.row[1][0], tooth_object.matrix_local.row[2][0]))
+    z_axis = x_axis.cross(polygon_normal)
+    z_axis.normalize()
+    x_axis = polygon_normal.cross(z_axis)
+    x_axis.normalize()
+
+    M_orient = mathutils.Matrix([x_axis, polygon_normal, z_axis])
+    M_orient.transpose()
+    M_orient.normalize()
+    M_orient = M_orient.to_4x4()
     
-    obj.location[0] = mytool.Tip_11
-         
-def tor_11_update(self, context):
-    print('world')
+    N = tooth_object.matrix_local.copy()
+    M_orient.row[0][3] = N.row[0][3]
+    M_orient.row[1][3] = N.row[1][3]
+    M_orient.row[2][3] = N.row[2][3]
 
+    return M_orient
 
+def get_tip(tooth_object, K_orient, tooth_number):
+    K_orient = K_orient.to_3x3()
+    K_orient_inver = K_orient.inverted()
+    obj_y_axis = mathutils.Vector((tooth_object.matrix_local.row[0][1], tooth_object.matrix_local.row[1][1], tooth_object.matrix_local.row[2][1]))
+    
+    local_y_axis = (K_orient_inver @ obj_y_axis)
+
+    print(tooth_number,' local Y axis:',local_y_axis)
+    angle_radian = math.atan2(local_y_axis[0], local_y_axis[1])
+    if ((10 < tooth_number) and (tooth_number < 20)) or ((30 < tooth_number) and (tooth_number < 40)):
+        if local_y_axis[0] > 0:
+            angle_radian = abs(angle_radian)
+        else:
+            angle_radian = -abs(angle_radian)
+    elif ((20 < tooth_number) and (tooth_number < 30)) or ((40 < tooth_number) and (tooth_number < 50)):
+        if local_y_axis[0] < 0:
+            angle_radian = abs(angle_radian)
+        else:
+            angle_radian = -abs(angle_radian)
+    else:
+        pass
+    print('tip angle radian', angle_radian)
+    return angle_radian
+
+def get_torque(tooth_object, K_orient):
+    matrix_world = tooth_object.matrix_world.copy()
+    obj_loca = tooth_object.location.copy()
+    polygons = tooth_object.data.polygons
+    vertex_index = []
+    cusp_points_hight=polygons[0].center[1]
+    for face in polygons:
+        if face.center[2]<0 and cusp_points_hight>face.center[1]:
+            cusp_points_hight = face.center[1]
+            vertex_index.append(face.index)
+    print(tooth_object.name, 'min hight:', cusp_points_hight)
+
+    dir = mathutils.Vector((0, 0, 1))
+    dist = 10
+    origin = mathutils.Vector((0, cusp_points_hight/4, -10))
+    result = tooth_object.ray_cast(origin, dir, distance=dist)
+    polygons[result[3]].select = True
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_more()
+    bpy.ops.mesh.select_more()
+    bpy.ops.object.mode_set(mode='OBJECT')
+    normal_vector = mathutils.Vector((0, 0, 0))
+    num = 0
+    for face in polygons:
+        if face.select == True:
+            normal_vector = normal_vector + face.normal
+            num = num + 1
+    tooth_object.select_set(False)
+    normal_vector = normal_vector / num
+    normal_vector.normalize()
+    face_normal = (matrix_world @ normal_vector) - obj_loca
+    face_normal.normalize()
+    # print('face_normal', face_normal)
+    x_axis = mathutils.Vector((matrix_world.row[0][0], matrix_world.row[1][0], matrix_world[2][0]))
+    y_axis = x_axis.cross(face_normal)
+    y_axis.normalize()
+    x_axis = face_normal.cross(y_axis)
+    x_axis.normalize()
+
+    K_orient = K_orient.to_3x3()
+    K_orient_inver = K_orient.inverted()
+    y_axis_local = (K_orient_inver @ y_axis)
+    y_axis_local.normalize()
+
+    angle_raidan = math.atan2(y_axis_local[2], y_axis_local[1])
+    if y_axis_local[2] > 0:
+        angle_raidan = abs(angle_raidan)
+    else:
+        angle_raidan = -abs(angle_raidan)
+    # print('y_axis_local', y_axis_local)
+    # print('torque angle', angle)
+    return angle_raidan
+
+def update(self, context, operate_id):
+    print(operate_id)
+    tooth_number = operate_id.split('_')[1]
+    operate_type = operate_id.split('_')[0]
+    mytool = context.scene.my_tool
+
+    tooth_name = 'Tooth_' + tooth_number
+    tooth_object = context.collection.objects[tooth_name]
+
+    jawplaneName = 'jawPlane_' + mytool.up_down
+    plane_object = bpy.data.objects[jawplaneName]
+
+    bpy.ops.object.select_all(action='DESELECT')
+    context.view_layer.objects.active = tooth_object
+    tooth_object.select_set(True)
+
+    M_orient = get_plane_ref_coord_matrix(plane_object, tooth_object, mytool.up_down)
+    if operate_type == 'A':
+        current_tip = get_tip(tooth_object, M_orient, int(tooth_number))
+        print('current tip', angle)
+        prop_name = 'Tip_' + tooth_number
+        update_tip = mytool.get(prop_name)
+        disp_angle = current_tip - update_tip
+        if (20 < int(tooth_number) < 30) or (40 < int(tooth_number) < 50):
+            disp_angle = -disp_angle
+        print('Changed Tip:', update_tip * (180/math.pi))
+        print('Disprity angle:', disp_angle * (180/math.pi))
+
+        a = (M_orient.row[0][0], M_orient.row[1][0], M_orient.row[2][0]) 
+        b = (M_orient.row[0][1], M_orient.row[1][1], M_orient.row[2][1])
+        c = (M_orient.row[0][2], M_orient.row[1][2], M_orient.row[2][2])
+        bpy.ops.transform.rotate(value=disp_angle, orient_axis='Z', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, False, True), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+        tooth_object.select_set(False)
+    else:
+        current_tor = get_torque(tooth_object, M_orient)
+        print('current tor', angle)
+        prop_name = 'Tor_' + tooth_number
+        update_tor = mytool.get(prop_name)
+        disp_angle = current_tor - update_tor
+        # if (20 < int(tooth_number) < 30) or (40 < int(tooth_number) < 50):
+        #     disp_angle = -disp_angle
+        print('Changed Tip:', update_tor * (180/math.pi))
+        print('Disprity angle:', disp_angle * (180/math.pi))
+        a = (M_orient.row[0][0], M_orient.row[1][0], M_orient.row[2][0]) 
+        b = (M_orient.row[0][1], M_orient.row[1][1], M_orient.row[2][1])
+        c = (M_orient.row[0][2], M_orient.row[1][2], M_orient.row[2][2])
+        bpy.ops.transform.rotate(value=disp_angle, orient_axis='Z', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, False, True), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+        tooth_object.select_set(False)
+    
 class MyProperties(bpy.types.PropertyGroup):
     selected_object_name : bpy.props.StringProperty(name="")
     y_direction : bpy.props.FloatVectorProperty(name="Y axis direction of tooth in local coordinate", subtype='XYZ', precision=2, size=3, default=(0.0, 0.0,0.0))
@@ -431,8 +584,73 @@ class MyProperties(bpy.types.PropertyGroup):
     D_41: bpy.props.BoolProperty(name="41", description="Lost Tooth 41", default=False)
 
     UP_tipTorExpand: bpy.props.BoolProperty(name="Tip Tor Expand", description="Expand Tip and Torque Panel", default=False)
-    Tip_11: bpy.props.FloatProperty(name="tip11", description="Tip value of Tooth 11", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=tip_11_update, get=None, set=None)
-    Tor_11: bpy.props.FloatProperty(name="tor11", description="Torque value of Tooth 11", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=tor_11_update, get=None, set=None)
+    Tip_11: bpy.props.FloatProperty(name="tip11", description="Tip value of Tooth 11", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_11'))
+    Tor_11: bpy.props.FloatProperty(name="tor11", description="Torque value of Tooth 11", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_11'))
+    Tip_12: bpy.props.FloatProperty(name="tip12", description="Tip value of Tooth 12", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_12'))
+    Tor_12: bpy.props.FloatProperty(name="tor12", description="Torque value of Tooth 12", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_12'))
+    Tip_13: bpy.props.FloatProperty(name="tip13", description="Tip value of Tooth 13", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_13'))
+    Tor_13: bpy.props.FloatProperty(name="tor14", description="Torque value of Tooth 13", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_13'))
+    Tip_14: bpy.props.FloatProperty(name="tip14", description="Tip value of Tooth 14", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_14'))
+    Tor_14: bpy.props.FloatProperty(name="tor15", description="Torque value of Tooth 14", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_14'))
+    Tip_15: bpy.props.FloatProperty(name="tip15", description="Tip value of Tooth 15", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_15'))
+    Tor_15: bpy.props.FloatProperty(name="tor15", description="Torque value of Tooth 15", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_15'))
+    Tip_16: bpy.props.FloatProperty(name="tip16", description="Tip value of Tooth 16", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_16'))
+    Tor_16: bpy.props.FloatProperty(name="tor16", description="Torque value of Tooth 16", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_16'))
+    Tip_17: bpy.props.FloatProperty(name="tip17", description="Tip value of Tooth 17", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_17'))
+    Tor_17: bpy.props.FloatProperty(name="tor17", description="Torque value of Tooth 17", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_17'))
+    Tip_18: bpy.props.FloatProperty(name="tip18", description="Tip value of Tooth 18", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_18'))
+    Tor_18: bpy.props.FloatProperty(name="tor18", description="Torque value of Tooth 18", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_18'))
+    
+    Tip_21: bpy.props.FloatProperty(name="tip21", description="Tip value of Tooth 21", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_21'))
+    Tor_21: bpy.props.FloatProperty(name="tor21", description="Torque value of Tooth 21", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_21'))
+    Tip_22: bpy.props.FloatProperty(name="tip22", description="Tip value of Tooth 22", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_22'))
+    Tor_22: bpy.props.FloatProperty(name="tor22", description="Torque value of Tooth 22", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_22'))
+    Tip_23: bpy.props.FloatProperty(name="tip23", description="Tip value of Tooth 23", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_23'))
+    Tor_23: bpy.props.FloatProperty(name="tor24", description="Torque value of Tooth 23", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_23'))
+    Tip_24: bpy.props.FloatProperty(name="tip24", description="Tip value of Tooth 24", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_24'))
+    Tor_24: bpy.props.FloatProperty(name="tor25", description="Torque value of Tooth 24", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_24'))
+    Tip_25: bpy.props.FloatProperty(name="tip25", description="Tip value of Tooth 25", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_25'))
+    Tor_25: bpy.props.FloatProperty(name="tor25", description="Torque value of Tooth 25", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_25'))
+    Tip_26: bpy.props.FloatProperty(name="tip26", description="Tip value of Tooth 26", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_26'))
+    Tor_26: bpy.props.FloatProperty(name="tor26", description="Torque value of Tooth 26", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_26'))
+    Tip_27: bpy.props.FloatProperty(name="tip27", description="Tip value of Tooth 27", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_27'))
+    Tor_27: bpy.props.FloatProperty(name="tor27", description="Torque value of Tooth 27", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_27'))
+    Tip_28: bpy.props.FloatProperty(name="tip28", description="Tip value of Tooth 28", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_28'))
+    Tor_28: bpy.props.FloatProperty(name="tor28", description="Torque value of Tooth 28", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_28'))
+    
+    Tip_31: bpy.props.FloatProperty(name="tip31", description="Tip value of Tooth 31", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_31'))
+    Tor_31: bpy.props.FloatProperty(name="tor31", description="Torque value of Tooth 31", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_31'))
+    Tip_32: bpy.props.FloatProperty(name="tip32", description="Tip value of Tooth 32", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_32'))
+    Tor_32: bpy.props.FloatProperty(name="tor32", description="Torque value of Tooth 32", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_32'))
+    Tip_33: bpy.props.FloatProperty(name="tip33", description="Tip value of Tooth 33", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_33'))
+    Tor_33: bpy.props.FloatProperty(name="tor34", description="Torque value of Tooth 33", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_33'))
+    Tip_34: bpy.props.FloatProperty(name="tip34", description="Tip value of Tooth 34", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_34'))
+    Tor_34: bpy.props.FloatProperty(name="tor35", description="Torque value of Tooth 34", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_34'))
+    Tip_35: bpy.props.FloatProperty(name="tip35", description="Tip value of Tooth 35", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_35'))
+    Tor_35: bpy.props.FloatProperty(name="tor35", description="Torque value of Tooth 35", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_35'))
+    Tip_36: bpy.props.FloatProperty(name="tip36", description="Tip value of Tooth 36", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_36'))
+    Tor_36: bpy.props.FloatProperty(name="tor36", description="Torque value of Tooth 36", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_36'))
+    Tip_37: bpy.props.FloatProperty(name="tip37", description="Tip value of Tooth 37", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_37'))
+    Tor_37: bpy.props.FloatProperty(name="tor37", description="Torque value of Tooth 37", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_37'))
+    Tip_38: bpy.props.FloatProperty(name="tip38", description="Tip value of Tooth 38", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_38'))
+    Tor_38: bpy.props.FloatProperty(name="tor38", description="Torque value of Tooth 38", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_38'))
+    
+    Tip_41: bpy.props.FloatProperty(name="tip41", description="Tip value of Tooth 41", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_41'))
+    Tor_41: bpy.props.FloatProperty(name="tor41", description="Torque value of Tooth 41", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_41'))
+    Tip_42: bpy.props.FloatProperty(name="tip42", description="Tip value of Tooth 42", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_42'))
+    Tor_42: bpy.props.FloatProperty(name="tor42", description="Torque value of Tooth 42", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_42'))
+    Tip_43: bpy.props.FloatProperty(name="tip43", description="Tip value of Tooth 43", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_43'))
+    Tor_43: bpy.props.FloatProperty(name="tor44", description="Torque value of Tooth 43", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_43'))
+    Tip_44: bpy.props.FloatProperty(name="tip44", description="Tip value of Tooth 44", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_44'))
+    Tor_44: bpy.props.FloatProperty(name="tor45", description="Torque value of Tooth 44", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_44'))
+    Tip_45: bpy.props.FloatProperty(name="tip45", description="Tip value of Tooth 45", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_45'))
+    Tor_45: bpy.props.FloatProperty(name="tor45", description="Torque value of Tooth 45", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_45'))
+    Tip_46: bpy.props.FloatProperty(name="tip46", description="Tip value of Tooth 46", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_46'))
+    Tor_46: bpy.props.FloatProperty(name="tor46", description="Torque value of Tooth 46", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_46'))
+    Tip_47: bpy.props.FloatProperty(name="tip47", description="Tip value of Tooth 47", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_47'))
+    Tor_47: bpy.props.FloatProperty(name="tor47", description="Torque value of Tooth 47", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_47'))
+    Tip_48: bpy.props.FloatProperty(name="tip48", description="Tip value of Tooth 48", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_48'))
+    Tor_48: bpy.props.FloatProperty(name="tor48", description="Torque value of Tooth 48", default=0.0, min=-180, max=180, step=3, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_48'))
 
 class MESH_TO_ready_seperate_teeth(bpy.types.Operator):
     """Read for seperating teeth"""
@@ -4011,7 +4229,6 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
             jawplaneName = 'jawPlane_' + mytool.up_down
 
         create_plane(jawplaneName)
-       
         print('================== Successfully Genertate Plane ========================')
         
         bpy.ops.object.select_all(action='DESELECT')
@@ -4019,139 +4236,153 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
             if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
-                tip_torque_dict = select_tooth_Tip_Torque(compate_tip=True, compate_torque=True)
-                parameters_list = tip_torque_dict[obj.name]
-                print('object name is:', obj.name)
-                print(parameters_list[0], parameters_list[1], parameters_list[2])
-                print('----------------------------------------------------------------------------') 
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='DESELECT')
+                bpy.ops.object.mode_set(mode='OBJECT')
+
+                jaw_plane_object = bpy.data.objects[jawplaneName]
+                tooth_number = int(obj.name.split('_')[1])
+                M_orient = get_plane_ref_coord_matrix(jaw_plane_object, obj, mytool.up_down)
+                tip_angle = get_tip(obj, M_orient.copy(), tooth_number)
+                tor_angle = get_torque(obj, M_orient.copy())
+                # bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, align='WORLD', location=(0, 0, 0))
+                # context.object.matrix_local = M_orient
+                bpy.ops.object.select_all(action='DESELECT')
+                
+                for prefix in ('Tip', 'Tor'):
+                    prop_name = prefix + '_' + str(tooth_number)
+                    if prefix == 'Tip':
+                        setattr(mytool, prop_name, tip_angle)
+                    if prefix == 'Tor':
+                        setattr(mytool, prop_name, tor_angle) 
 
         # Generate arch and enter edit mode for adjust
-        sum_location = 0
-        qunatity = 0
-        for idx, obj in enumerate(context.collection.objects):
-            if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
-                loca = obj.location
-                sum_location = sum_location + loca[2]
-                qunatity = qunatity + 1
-                scene.cursor.location = loca
-                bpy.ops.mesh.primitive_vert_add()
-                bpy.ops.object.mode_set(mode='OBJECT')
-                context.object.data.name = curve_name + '_vert_' + str(idx)
-                context.object.name = curve_name + '_vert_' + str(idx)
-                context.object.location[2] = 0.0
-                if bpy.data.collections.get('Arch') is None:
-                    arch_coll = bpy.data.collections.new('Arch')
-                    context.scene.collection.children.link(arch_coll)
-                bpy.data.collections['Arch'].objects.link(context.object)
-                context.collection.objects.unlink(context.object)
+        # sum_location = 0
+        # qunatity = 0
+        # for idx, obj in enumerate(context.collection.objects):
+        #     if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
+        #         loca = obj.location
+        #         sum_location = sum_location + loca[2]
+        #         qunatity = qunatity + 1
+        #         scene.cursor.location = loca
+        #         bpy.ops.mesh.primitive_vert_add()
+        #         bpy.ops.object.mode_set(mode='OBJECT')
+        #         context.object.data.name = curve_name + '_vert_' + str(idx)
+        #         context.object.name = curve_name + '_vert_' + str(idx)
+        #         context.object.location[2] = 0.0
+        #         if bpy.data.collections.get('Arch') is None:
+        #             arch_coll = bpy.data.collections.new('Arch')
+        #             context.scene.collection.children.link(arch_coll)
+        #         bpy.data.collections['Arch'].objects.link(context.object)
+        #         context.collection.objects.unlink(context.object)
 
-        bpy.ops.object.select_all(action='DESELECT')
-        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Arch']        
-        for obj in context.collection.objects: 
-            if obj.name.startswith(curve_name): 
-                context.view_layer.objects.active = obj
-                obj.select_set(True)
-        bpy.ops.object.join()
+        # bpy.ops.object.select_all(action='DESELECT')
+        # bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Arch']        
+        # for obj in context.collection.objects: 
+        #     if obj.name.startswith(curve_name): 
+        #         context.view_layer.objects.active = obj
+        #         obj.select_set(True)
+        # bpy.ops.object.join()
         
-        dental_arch = context.object
-        dental_arch.data.name = curve_name
-        dental_arch.name = curve_name
-        dental_arch.show_name = True
+        # dental_arch = context.object
+        # dental_arch.data.name = curve_name
+        # dental_arch.name = curve_name
+        # dental_arch.show_name = True
 
         
-        if mytool.up_down == 'UP_':
-            dental_arch.location[2] = (sum_location / qunatity) - 5
-        else:
-            dental_arch.location[2] = (sum_location / qunatity) + 5
+        # if mytool.up_down == 'UP_':
+        #     dental_arch.location[2] = (sum_location / qunatity) - 5
+        # else:
+        #     dental_arch.location[2] = (sum_location / qunatity) + 5
 
-        context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
-        context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
-        bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.select_all(action='DESELECT')
-        bpy.ops.object.mode_set(mode='OBJECT')
+        # context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
+        # context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
+        # bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+        # bpy.ops.object.mode_set(mode='EDIT')
+        # bpy.ops.mesh.select_all(action='DESELECT')
+        # bpy.ops.object.mode_set(mode='OBJECT')
         
-        vertices = dental_arch.data.vertices
+        # vertices = dental_arch.data.vertices
 
-        angle_inde_dict = dict()
-        for index, vrt in enumerate(vertices):
-            location = vrt.co
+        # angle_inde_dict = dict()
+        # for index, vrt in enumerate(vertices):
+        #     location = vrt.co
 
-            if location[1] == 0 and location[0] < 0 :
-                angle = math.atan((-location[0])/location[1])
-                angle = math.pi / 2
-            elif location[1] == 0 and location[0] > 0:
-                angle = math.atan((-location[0])/location[1])
-                angle = math.pi + math.pi / 2
-            elif location[0] > 0 and location[1] > 0:
-                angle = math.atan((-location[0])/location[1])
-                angle = angle + 2 * math.pi
-            elif location[0] > 0 and location[1] < 0:
-                angle = math.atan((-location[0])/location[1])
-                angle = angle + math.pi
-            elif location[0] < 0 and location[1] < 0:
-                angle = math.atan((-location[0])/location[1])
-                angle = angle + math.pi
-            else:
-                angle = math.atan((-location[0])/location[1])
-            # print(index,angle/math.pi*180)
-            angle_inde_dict[index] =  angle                                         
-        sort_list = sorted(angle_inde_dict.items(), key=lambda item:item[1])
-        print(sort_list)
+        #     if location[1] == 0 and location[0] < 0 :
+        #         angle = math.atan((-location[0])/location[1])
+        #         angle = math.pi / 2
+        #     elif location[1] == 0 and location[0] > 0:
+        #         angle = math.atan((-location[0])/location[1])
+        #         angle = math.pi + math.pi / 2
+        #     elif location[0] > 0 and location[1] > 0:
+        #         angle = math.atan((-location[0])/location[1])
+        #         angle = angle + 2 * math.pi
+        #     elif location[0] > 0 and location[1] < 0:
+        #         angle = math.atan((-location[0])/location[1])
+        #         angle = angle + math.pi
+        #     elif location[0] < 0 and location[1] < 0:
+        #         angle = math.atan((-location[0])/location[1])
+        #         angle = angle + math.pi
+        #     else:
+        #         angle = math.atan((-location[0])/location[1])
+        #     # print(index,angle/math.pi*180)
+        #     angle_inde_dict[index] =  angle                                         
+        # sort_list = sorted(angle_inde_dict.items(), key=lambda item:item[1])
+        # print(sort_list)
 
-        for idx, item in enumerate(sort_list):
-            if idx == len(sort_list)-1:
-                break   
-            vertices[sort_list[idx][0]].select = True
-            vertices[sort_list[idx+1][0]].select = True
+        # for idx, item in enumerate(sort_list):
+        #     if idx == len(sort_list)-1:
+        #         break   
+        #     vertices[sort_list[idx][0]].select = True
+        #     vertices[sort_list[idx+1][0]].select = True
             
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.edge_face_add()
-            bpy.ops.mesh.select_all(action='DESELECT')
-            bpy.ops.object.mode_set(mode='OBJECT')
-        end = len(sort_list) - 1
-        start = 0
-        vertices[sort_list[end][0]].select = True
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(3.0, 8.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
-        bpy.ops.mesh.select_all(action='DESELECT')
-        bpy.ops.object.mode_set(mode='OBJECT')
-        vertices[sort_list[start][0]].select = True
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(-3.0, 8.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
-        bpy.ops.mesh.select_all(action='DESELECT')
-        bpy.ops.object.mode_set(mode='OBJECT')
+        #     bpy.ops.object.mode_set(mode='EDIT')
+        #     bpy.ops.mesh.edge_face_add()
+        #     bpy.ops.mesh.select_all(action='DESELECT')
+        #     bpy.ops.object.mode_set(mode='OBJECT')
+        # end = len(sort_list) - 1
+        # start = 0
+        # vertices[sort_list[end][0]].select = True
+        # bpy.ops.object.mode_set(mode='EDIT')
+        # bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(3.0, 8.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+        # bpy.ops.mesh.select_all(action='DESELECT')
+        # bpy.ops.object.mode_set(mode='OBJECT')
+        # vertices[sort_list[start][0]].select = True
+        # bpy.ops.object.mode_set(mode='EDIT')
+        # bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(-3.0, 8.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+        # bpy.ops.mesh.select_all(action='DESELECT')
+        # bpy.ops.object.mode_set(mode='OBJECT')
 
-        bpy.ops.object.modifier_add(type='SUBSURF')
-        bpy.context.object.modifiers["Subdivision"].levels = 2
-        bpy.context.object.modifiers["Subdivision"].show_on_cage = True
+        # bpy.ops.object.modifier_add(type='SUBSURF')
+        # bpy.context.object.modifiers["Subdivision"].levels = 2
+        # bpy.context.object.modifiers["Subdivision"].show_on_cage = True
         
-        bpy.ops.object.modifier_add(type='SMOOTH')
-        bpy.context.object.modifiers["Smooth"].iterations = 20
-        bpy.context.object.modifiers["Smooth"].show_in_editmode = True
-        bpy.context.object.modifiers["Smooth"].show_on_cage = True
-        bpy.context.object.modifiers["Smooth"].factor = 0.7
+        # bpy.ops.object.modifier_add(type='SMOOTH')
+        # bpy.context.object.modifiers["Smooth"].iterations = 20
+        # bpy.context.object.modifiers["Smooth"].show_in_editmode = True
+        # bpy.context.object.modifiers["Smooth"].show_on_cage = True
+        # bpy.context.object.modifiers["Smooth"].factor = 0.7
 
-        bpy.ops.object.modifier_add(type='SKIN')
+        # bpy.ops.object.modifier_add(type='SKIN')
 
-        bpy.ops.object.modifier_add(type='MIRROR')
-        bpy.context.object.modifiers["Mirror"].use_bisect_axis[0] = True
+        # bpy.ops.object.modifier_add(type='MIRROR')
+        # bpy.context.object.modifiers["Mirror"].use_bisect_axis[0] = True
 
-        if bpy.data.materials.get('Arch') is None:
-            mat = bpy.data.materials.new(name="Arch")
-            mat.diffuse_color = (0, 0.56, 1, 1)
-            context.object.active_material = mat
-        else:
-            mat = bpy.data.materials['Arch']
-            context.object.active_material = mat
+        # if bpy.data.materials.get('Arch') is None:
+        #     mat = bpy.data.materials.new(name="Arch")
+        #     mat.diffuse_color = (0, 0.56, 1, 1)
+        #     context.object.active_material = mat
+        # else:
+        #     mat = bpy.data.materials['Arch']
+        #     context.object.active_material = mat
 
-        bpy.ops.object.mode_set(mode='EDIT')
+        # bpy.ops.object.mode_set(mode='EDIT')
 
-        bpy.context.scene.tool_settings.use_snap = False
-        bpy.ops.wm.tool_set_by_id(name="builtin.select")
-        bpy.context.space_data.show_gizmo_object_translate = False
+        # bpy.context.scene.tool_settings.use_snap = False
+        # bpy.ops.wm.tool_set_by_id(name="builtin.select")
+        # bpy.context.space_data.show_gizmo_object_translate = False
 
-        bpy.context.tool_settings.mesh_select_mode = (True, False, False)
+        # bpy.context.tool_settings.mesh_select_mode = (True, False, False)
         bpy.ops.ed.undo_push()
         return {'FINISHED'}
 
@@ -4472,62 +4703,53 @@ class MESH_TO_test(bpy.types.Operator):
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
             jawplaneName = 'jawPlane_' + mytool.up_down
 
-        jaw_plane_object = bpy.data.objects[jawplaneName]
-        loca = jaw_plane_object.location
-        matrix_world = jaw_plane_object.matrix_world    
-        if len(jaw_plane_object.data.polygons) == 1:
-            polygon_normal = jaw_plane_object.data.polygons[0].normal
-            if mytool.up_down == 'UP_':
-                if polygon_normal[2] < 0:
-                    polygon_normal[2] = -polygon_normal[2]
-            else:
-                if polygon_normal[2] > 0:
-                    polygon_normal[2] = -polygon_normal[2]  
-
-            polygon_normal = (matrix_world @ polygon_normal) - loca
-            polygon_normal.normalize()
-            print('polygon normal', polygon_normal)
-        else:
-            print('Jaw polygons has no face normal')
-            return {'CANCELLED'}
-
+        bpy.ops.object.select_all(action='DESELECT')
         for obj in context.collection.objects:
             if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
-                x_axis = mathutils.Vector((obj.matrix_local.row[0][0], obj.matrix_local.row[1][0], obj.matrix_local.row[2][0]))
-                z_axis = x_axis.cross(polygon_normal)
-                z_axis.normalize()
-                x_axis = polygon_normal.cross(z_axis)
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='DESELECT')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                matrix_world = obj.matrix_world.copy()
+                obj_loca = obj.location.copy()
+                polygons = obj.data.polygons
+                vertex_index = []
+                cusp_points_hight=polygons[0].center[1]
+                for face in polygons:
+                    if face.center[2]<0 and cusp_points_hight>face.center[1]:
+                        cusp_points_hight = face.center[1]
+                        vertex_index.append(face.index)
+                print(obj.name, 'min hight:', cusp_points_hight)
+
+                dir = mathutils.Vector((0, 0, 1))
+                dist = 10
+                origin = mathutils.Vector((0, cusp_points_hight/4, -10))
+                result = obj.ray_cast(origin, dir, distance=dist)
+                polygons[result[3]].select = True
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_more()
+                bpy.ops.mesh.select_more()
+                bpy.ops.object.mode_set(mode='OBJECT')
+                normal_vector = mathutils.Vector((0, 0, 0))
+                num = 0
+                for face in polygons:
+                    if face.select == True:
+                        normal_vector = normal_vector + face.normal
+                        num = num + 1
+                obj.select_set(False)
+                normal_vector = normal_vector / num
+                normal_vector.normalize()
+                face_normal = (matrix_world @ normal_vector) - obj_loca
+                face_normal.normalize()
+                print('face_normal', face_normal)
+                x_axis = mathutils.Vector((matrix_world.row[0][0], matrix_world.row[1][0], matrix_world[2][0]))
+                y_axis = x_axis.cross(face_normal)
+                y_axis.normalize()
+                x_axis = face_normal.cross(y_axis)
                 x_axis.normalize()
 
-                M_orient = mathutils.Matrix([x_axis, polygon_normal, z_axis])
-                M_orient.transpose()
-                M_orient.normalize()
-                M_orient = M_orient.to_4x4()
-                K_orient = M_orient.copy()
-                
-                N = obj.matrix_local.copy()
-                M_orient.row[0][3] = N.row[0][3]
-                M_orient.row[1][3] = N.row[1][3]
-                M_orient.row[2][3] = N.row[2][3]
-
-                K_orient_inver = K_orient.inverted()
-                obj_y_axis = mathutils.Vector((obj.matrix_local.row[0][1], obj.matrix_local.row[1][1], obj.matrix_local.row[2][1]))
-                local_y_axis = (K_orient_inver @ obj_y_axis)
-
-                print('object name', obj.name)
-                print('local Y axis:',local_y_axis)
-                # mat = get_tooth_surface_matrix(obj)
-                # print(mat)
-                print(M_orient)
-                
-                obj.select_set(False)
-                bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, align='WORLD', location=(0, 0, 0))
-                context.object.matrix_local = M_orient
-                bpy.ops.object.select_all(action='DESELECT')
-
-        mytool.Tip_11 = context.collection.objects['Tooth_11'].location[0]
+                # get_torque(obj)
         
         return {'FINISHED'}
 
@@ -4685,20 +4907,184 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
         # row = self.layout.row(align=True)
         # put_on_brackets = row.operator('mesh.put_on_brackets', text='Put On Brackets')
         if (context.mode == 'OBJECT'):
-            row = self.layout.row()
+            row = self.layout.row(align=True)
             row.prop(mytool, "UP_tipTorExpand",
                 icon="TRIA_DOWN" if mytool.UP_tipTorExpand else "TRIA_RIGHT",
                 icon_only=True, emboss=False
             )
             row.label(text='Tip Torque')
             if mytool.UP_tipTorExpand:
-                box = self.layout.box()
-                row = box.row(align=True)
-                tip_label = row.label(text="Tip", text_ctxt="Tip Value", translate=True, icon='NONE', icon_value=0)
-                tor_label = row.label(text="Torque", text_ctxt="Torque Value", translate=True, icon='NONE', icon_value=0)
-                row = box.row(align=True)
-                Tip_11 = row.prop(mytool, 'Tip_11', text='')
-                Tor_11 = row.prop(mytool, 'Tor_11', text='')
+                col = self.layout.column(align=True)
+                row = col.row(align=True)  
+                split = row.split(factor= 0.1, align=True)
+                split.label(text="", text_ctxt="", translate=True, icon='NONE', icon_value=0)
+                split.label(text="Tip", text_ctxt="Tip Value", translate=True, icon='NONE', icon_value=0)
+                split.label(text="Torque", text_ctxt="Torque Value", translate=True, icon='NONE', icon_value=0)
+                if mytool.up_down == 'UP_':
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="11", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_11', text='')
+                    split.prop(mytool, 'Tor_11', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="12", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_12', text='')
+                    split.prop(mytool, 'Tor_12', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="13", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_13', text='')
+                    split.prop(mytool, 'Tor_13', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="14", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_14', text='')
+                    split.prop(mytool, 'Tor_14', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="15", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_15', text='')
+                    split.prop(mytool, 'Tor_15', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="16", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_16', text='')
+                    split.prop(mytool, 'Tor_16', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="17", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_17', text='')
+                    split.prop(mytool, 'Tor_17', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="18", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_18', text='')
+                    split.prop(mytool, 'Tor_18', text='')
+
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="21", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_21', text='')
+                    split.prop(mytool, 'Tor_21', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="22", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_22', text='')
+                    split.prop(mytool, 'Tor_22', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="23", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_23', text='')
+                    split.prop(mytool, 'Tor_23', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="24", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_24', text='')
+                    split.prop(mytool, 'Tor_24', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="25", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_25', text='')
+                    split.prop(mytool, 'Tor_25', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="26", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_26', text='')
+                    split.prop(mytool, 'Tor_26', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="27", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_27', text='')
+                    split.prop(mytool, 'Tor_27', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="28", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_28', text='')
+                    split.prop(mytool, 'Tor_28', text='')
+                else:
+
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="31", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_31', text='')
+                    split.prop(mytool, 'Tor_31', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="32", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_32', text='')
+                    split.prop(mytool, 'Tor_32', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="33", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_33', text='')
+                    split.prop(mytool, 'Tor_33', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="34", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_34', text='')
+                    split.prop(mytool, 'Tor_34', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="35", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_35', text='')
+                    split.prop(mytool, 'Tor_35', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="36", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_36', text='')
+                    split.prop(mytool, 'Tor_36', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="37", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_37', text='')
+                    split.prop(mytool, 'Tor_37', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="38", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_38', text='')
+                    split.prop(mytool, 'Tor_38', text='')
+
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="41", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_41', text='')
+                    split.prop(mytool, 'Tor_41', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="42", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_42', text='')
+                    split.prop(mytool, 'Tor_42', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="43", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_43', text='')
+                    split.prop(mytool, 'Tor_43', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="44", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_44', text='')
+                    split.prop(mytool, 'Tor_44', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="45", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_45', text='')
+                    split.prop(mytool, 'Tor_45', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="46", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_46', text='')
+                    split.prop(mytool, 'Tor_46', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="47", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_47', text='')
+                    split.prop(mytool, 'Tor_47', text='')
+                    row = col.row(align=True)
+                    split = row.split(factor= 0.1, align=True)
+                    split.label(text="48", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split.prop(mytool, 'Tip_48', text='')
+                    split.prop(mytool, 'Tor_48', text='')
 
     
 def exec_read_global_peremeter(commend,key):
@@ -4954,3 +5340,4 @@ def unregister():
 
 if __name__ == '__main__':
     register()
+    
