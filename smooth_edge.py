@@ -433,10 +433,14 @@ def get_torque(tooth_object, K_orient):
     return angle_raidan
 
 def update(self, context, operate_id):
-    print(operate_id)
     tooth_number = operate_id.split('_')[1]
     operate_type = operate_id.split('_')[0]
     mytool = context.scene.my_tool
+
+    if mytool.up_down == 'UP_':
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
+    else:
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
 
     tooth_name = 'Tooth_' + tooth_number
     tooth_object = context.collection.objects[tooth_name]
@@ -4304,6 +4308,7 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
         context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
         bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
         bpy.ops.object.mode_set(mode='EDIT')
+        bpy.context.tool_settings.mesh_select_mode = (True, False, False)
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode='OBJECT')
         
@@ -4342,19 +4347,23 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
             vertices[sort_list[idx+1][0]].select = True
             
             bpy.ops.object.mode_set(mode='EDIT')
+            bpy.context.tool_settings.mesh_select_mode = (True, False, False)
             bpy.ops.mesh.edge_face_add()
             bpy.ops.mesh.select_all(action='DESELECT')
             bpy.ops.object.mode_set(mode='OBJECT')
+
         end = len(sort_list) - 1
         start = 0
         vertices[sort_list[end][0]].select = True
         bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(3.0, 8.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(4.0, 10.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(2.0, 10.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode='OBJECT')
         vertices[sort_list[start][0]].select = True
         bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(-3.0, 8.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(-4.0, 10.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(-2.0, 10.0, 0), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, False), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -4372,13 +4381,14 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
 
         bpy.ops.object.modifier_add(type='MIRROR')
         bpy.context.object.modifiers["Mirror"].use_bisect_axis[0] = True
+        
 
         bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
         if mytool.up_down == 'UP_' and mytool.scale_up_arch == False:
-            bpy.ops.transform.resize(value=(1.1, 1.1, 1.1), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+            bpy.ops.transform.resize(value=(1.12, 1.12, 1.12), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
             mytool.scale_up_arch == True
         if mytool.up_down == 'DOWN_' and mytool.scale_down_arch == False:
-            bpy.ops.transform.resize(value=(1.05, 1.05, 1.05), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+            bpy.ops.transform.resize(value=(1.15, 1.15, 1.15), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
             mytool.scale_down_arch == True
 
         if bpy.data.materials.get('Arch') is None:
@@ -4389,11 +4399,16 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
             mat = bpy.data.materials['Arch']
             context.object.active_material = mat
 
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mesh.vertices_smooth(factor=0.5)
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+
         bpy.context.scene.tool_settings.use_snap = False
         bpy.ops.wm.tool_set_by_id(name="builtin.select")
         bpy.context.space_data.show_gizmo_object_translate = False
 
-        bpy.context.tool_settings.mesh_select_mode = (True, False, False)
         bpy.ops.ed.undo_push()
         return {'FINISHED'}
 
@@ -4460,6 +4475,7 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
 
         vertices = dental_arch.data.vertices
         edges = dental_arch.data.edges
+        arch_matrix = dental_arch.matrix_world.copy()
 
         bpy.ops.object.select_all(action='DESELECT')
         for obj in context.collection.objects:
@@ -4471,7 +4487,7 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                 min_index = 0
                 loca = obj.location
                 tooth_matrix = obj.matrix_world.copy()
-                tooth_matrix_invert = tooth_matrix.inverted()
+                
                 for vertice in vertices:
                     disp = loca - vertice.co
                     dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
@@ -4479,90 +4495,119 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                         if dis < min_dis:
                             min_dis = dis
                             min_index = vertice.index
-                vrt_x = vertices[min_index].co[0]  
-                vrt_y = vertices[min_index].co[1]
-                obj.location[0] = vrt_x
-                obj.location[1] = vrt_y
+                a = []
+                for edge in edges:
+                    if edge.vertices[0] == min_index :
+                        a.append(edge.vertices[1])
+                    if edge.vertices[1] == min_index :
+                        a.append(edge.vertices[0])
+        
+                vertices[a[0]].select = True
+                vertices[a[1]].select = True
 
-            #         a = []
-            #         for edge in edges:
-            #             if edge.vertices[0] == min_index :
-            #                 a.append(edge.vertices[1])
-            #             if edge.vertices[1] == min_index :
-            #                 a.append(edge.vertices[0])
-            
-            #         vertices[a[0]].select = True
-            #         vertices[a[1]].select = True
+                vrt_1 = arch_matrix @ vertices[a[0]].co
+                vrt_2 = arch_matrix @ vertices[a[1]].co
+                middle_vrt = arch_matrix @ vertices[min_index].co
+                w_x1 = vrt_1[0]
+                w_y1 = vrt_1[1]
 
-            #         x1 = vertices[a[0]].co[0]
-            #         y1 = vertices[a[0]].co[1]
+                w_x2 = vrt_2[0]
+                w_y2 = vrt_2[1]
+                # print('v1:', (w_x1, w_y1), 'v2:', (w_x2, w_y2))
 
-            #         x2 = vertices[a[1]].co[0]
-            #         y2 = vertices[a[1]].co[1]
-            #         if (x2 - x1) != 0:
-            #             k = (y2 - y1) / (x2 - x1)
-            #             if k != 0:
-            #                 k2 = -(1/k)
-            #                 b2 = vertices[min_index].co[1] - vertices[min_index].co[0] * k2
-            #                 print('k is :', k, k2, obj.name)
-            #                 point_x = 0
-            #                 point_y = b2
-            #                 point_z = vertices[min_index].co[2]
+                if (w_x2 - w_x1) != 0:
+                        k = (w_y2 - w_y1) / (w_x2 - w_x1)
+                        if k != 0:
+                            k2 = -(1/k)
+                            b2 = middle_vrt[1] - middle_vrt[0] * k2
+                            print('k is :', k, k2, obj.name)
+                            point_x = 0
+                            point_y = b2
                             
-            #                 vector1_x = point_x - vertices[min_index].co[0]
-            #                 vector1_y = point_y - vertices[min_index].co[1]
+                            vector1_x = point_x - middle_vrt[0]
+                            vector1_y = point_y - middle_vrt[1]
+                        else:
+                            vector1_x = 0
+                            vector1_y = -1
+                else:
+                    if w_x1 < 0:
+                        vector1_x = 1
+                        vector1_y = 0
+                    else:
+                        vector1_x = -1
+                        vector1_y = 0
+                axis_x = tooth_matrix.row[0][2]
+                axis_y = tooth_matrix.row[1][2]
+                print(tooth_matrix)
 
-            #                 print('Point', vector1_x, vector1_y)
-                    
-            #                 M = obj.matrix_local.copy()
-            #                 M = M.to_3x3()
-            #                 M.transpose()
-            #                 print(M)
-            #                 vector2_x = M.row[2][0]
-            #                 vector2_y = M.row[2][1]
-            #                 len1 = math.sqrt((vector1_x * vector1_x) + (vector1_y * vector1_y))
-            #                 len2 = math.sqrt((vector2_x * vector2_x) + (vector2_y * vector2_y))
-            #                 vector1_x = vector1_x / len1
-            #                 vector1_y = vector1_y / len1
-            #                 vector2_x = vector2_x / len2
-            #                 vector2_y = vector2_y / len2
-                            
-            #                 dot = vector1_x * vector2_x + vector1_y * vector2_y 
-            #                 theta  = math.acos(dot)
-            #                 P_N = vector2_x * vector1_y - vector1_x * vector2_y
-            #                 print(obj.name,theta/math.pi*180, P_N)
-            #                 print('========================')
-            #                 if mytool.up_down == 'UP_':
-            #                     if P_N < 0:
-            #                         theta = -theta
-            #                 else:   
-            #                     if P_N > 0:
-            #                         theta = -theta
-            #                 bpy.ops.object.select_all(action='DESELECT')
-            #                 context.view_layer.objects.active = obj
-            #                 obj.select_set(True)
+                len1 = math.sqrt((vector1_x * vector1_x) + (vector1_y * vector1_y))
+                len2 = math.sqrt((axis_x * axis_x) + (axis_y * axis_y))
+                vector1_x = vector1_x / len1
+                vector1_y = vector1_y / len1
+                axis_x = axis_x / len2
+                axis_y = axis_y / len2
+                print('Vector', (vector1_x, vector1_y))
+                print('Axis:', (axis_x,axis_y))
 
-            #                 bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
-            #                 bpy.ops.transform.create_orientation(name="local_orient", use=True)
-            #                 orientation_matirx = bpy.context.scene.transform_orientation_slots[0].custom_orientation.matrix.copy()
-            #                 orientation_matirx.transpose()
-            #                 a = (orientation_matirx.row[0][0], orientation_matirx.row[0][1], orientation_matirx.row[0][2])
-            #                 b = (orientation_matirx.row[1][0], orientation_matirx.row[1][1], orientation_matirx.row[1][2])
-            #                 c = (orientation_matirx.row[2][0], orientation_matirx.row[2][1], orientation_matirx.row[2][2])
-            #                 bpy.ops.transform.delete_orientation()
-            #                 bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
-            #                 bpy.context.space_data.show_gizmo_object_translate = True
+                dot = vector1_x * axis_x + vector1_y * axis_y 
+                theta  = math.acos(dot)
+                P_N = axis_x * vector1_y - vector1_x * axis_y
+                if (P_N < 0 and mytool.up_down == 'UP_'):
+                    theta = -theta
+                if (P_N > 0 and mytool.up_down == 'DOWN_'):
+                    theta = -theta
+                z_axis = mathutils.Vector((axis_x, axis_y, 0))
+                z_axis.normalize()
+                x_axis = vrt_1 - vrt_2
+                x_axis.normalize()  
+                y_axis = x_axis.cross(z_axis)
+                y_axis.normalize()
+                if mytool.up_down == "UP_":
+                    if y_axis[2] < 0:
+                        y_axis[2] = abs(y_axis[2])
+                else:
+                    if y_axis[2] > 0:
+                        y_axis[2] = -abs(y_axis[2])
 
-            #                 bpy.ops.transform.rotate(value=theta, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-            #                 bpy.ops.object.select_all(action='DESELECT')
+                M_orient = mathutils.Matrix([x_axis, y_axis, z_axis])
+                M_orient.normalize()
 
-            #                 # print(M, vector1_x, vector1_y)
-            #             else:
-            #                 pass 
-            #         else:   
-            #             pass
+                print('M_orient')
+                print(M_orient)
+                print('angle is:', theta * (180 / math.pi), 'P_N:', P_N)
+                
+               
+                a = (M_orient.row[0][0],M_orient.row[0][1],M_orient.row[0][2])
+                b = (M_orient.row[1][0],M_orient.row[1][1],M_orient.row[1][2])
+                c = (M_orient.row[2][0],M_orient.row[2][1],M_orient.row[2][2])
+
+                bpy.ops.transform.rotate(value=theta, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+
+                # move tooth into right position
+                temp_min = 100
+                temp_max = -100
+                tooth_vertices = obj.data.vertices
+                for vrt in tooth_vertices:
+                    if vrt.co[2] < 0 and abs(vrt.co[0]) < 0.3:
+                        
+                        if vrt.co[2] < temp_min:
+                            temp_min = vrt.co[2]
+                        if vrt.co[2] > temp_max:
+                            temp_max = vrt.co[2]
+                print(temp_min,temp_max)
+                z_co = (temp_max + temp_min) / 2
+                co = mathutils.Vector((0,0,z_co))
+                new_co = tooth_matrix @ co
+                print('world co', new_co)
+                loca_x = new_co[0]
+                loca_y = new_co[1]
+                  
+                dis = math.sqrt( (middle_vrt[0]-loca_x)*(middle_vrt[0] - loca_x) + (middle_vrt[1]-loca_y)*(middle_vrt[1]-loca_y))
+                print('-----------------------------------------------------------------')
+                obj.select_set(False) 
 
 
+                 
         bpy.ops.ed.undo_push()
         
 
