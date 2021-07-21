@@ -4465,6 +4465,7 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.looptools_space(influence=100, input='selected', interpolation='cubic', lock_x=False, lock_y=False, lock_z=False)
         bpy.ops.mesh.subdivide()
+        bpy.ops.mesh.subdivide()
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode='OBJECT')
         context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
@@ -4502,9 +4503,6 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                     if edge.vertices[1] == min_index :
                         a.append(edge.vertices[0])
         
-                vertices[a[0]].select = True
-                vertices[a[1]].select = True
-
                 vrt_1 = arch_matrix @ vertices[a[0]].co
                 vrt_2 = arch_matrix @ vertices[a[1]].co
                 middle_vrt = arch_matrix @ vertices[min_index].co
@@ -4558,9 +4556,10 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                     theta = -theta
                 z_axis = mathutils.Vector((axis_x, axis_y, 0))
                 z_axis.normalize()
-                x_axis = vrt_1 - vrt_2
-                x_axis.normalize()  
-                y_axis = x_axis.cross(z_axis)
+                print('z_axis', z_axis)
+                temp_x = vrt_1 - vrt_2
+                temp_x.normalize()
+                y_axis = temp_x.cross(z_axis)
                 y_axis.normalize()
                 if mytool.up_down == "UP_":
                     if y_axis[2] < 0:
@@ -4568,7 +4567,11 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                 else:
                     if y_axis[2] > 0:
                         y_axis[2] = -abs(y_axis[2])
-
+                print('y_axis', y_axis)
+                x_axis = y_axis.cross(z_axis)
+                x_axis.normalize()
+                print('x_axis', x_axis)
+            
                 M_orient = mathutils.Matrix([x_axis, y_axis, z_axis])
                 M_orient.normalize()
 
@@ -4576,33 +4579,87 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                 print(M_orient)
                 print('angle is:', theta * (180 / math.pi), 'P_N:', P_N)
                 
-               
                 a = (M_orient.row[0][0],M_orient.row[0][1],M_orient.row[0][2])
                 b = (M_orient.row[1][0],M_orient.row[1][1],M_orient.row[1][2])
                 c = (M_orient.row[2][0],M_orient.row[2][1],M_orient.row[2][2])
 
                 bpy.ops.transform.rotate(value=theta, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-
-                # move tooth into right position
-                temp_min = 100
-                temp_max = -100
-                tooth_vertices = obj.data.vertices
-                for vrt in tooth_vertices:
-                    if vrt.co[2] < 0 and abs(vrt.co[0]) < 0.3:
-                        
-                        if vrt.co[2] < temp_min:
-                            temp_min = vrt.co[2]
-                        if vrt.co[2] > temp_max:
-                            temp_max = vrt.co[2]
-                print(temp_min,temp_max)
-                z_co = (temp_max + temp_min) / 2
-                co = mathutils.Vector((0,0,z_co))
-                new_co = tooth_matrix @ co
-                print('world co', new_co)
-                loca_x = new_co[0]
-                loca_y = new_co[1]
-                  
-                dis = math.sqrt( (middle_vrt[0]-loca_x)*(middle_vrt[0] - loca_x) + (middle_vrt[1]-loca_y)*(middle_vrt[1]-loca_y))
+                if mytool.up_down == 'UP_':
+                    a = M_orient.copy()
+                    a.transpose()
+                    b = a.to_4x4()
+                    b.row[0][3] = obj.location[0]
+                    b.row[1][3] = obj.location[1]
+                    b.row[2][3] = obj.location[2]
+                    # bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, align='WORLD', location=(0, 0, 0))
+                    # context.object.matrix_local = b
+                    bpy.ops.object.select_all(action='DESELECT')
+                    # move tooth into right position
+                    # temp_min = 100
+                    # temp_max = -100
+                    # tooth_vertices = obj.data.vertices
+                    # for vrt in tooth_vertices:
+                    #     if vrt.co[2] < 0 and abs(vrt.co[0]) < 0.3:
+                    #         vrt.select = True
+                    #         if vrt.co[2] < temp_min:
+                    #             temp_min = vrt.co[2]
+                    #         if vrt.co[2] > temp_max:
+                    #             temp_max = vrt.co[2]
+                    # print(temp_min,temp_max)
+                    # z_co = (temp_max + temp_min) / 2
+                    # co = mathutils.Vector((0,0,z_co))
+                    # new_co = tooth_matrix @ co
+                    # print('world co', new_co)
+                    # loca_x = new_co[0]
+                    # loca_y = new_co[1]
+                    # cursor = mathutils.Vector((loca_x, loca_y, 0))
+                    # context.scene.cursor.location = cursor
+                    # bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+                    # loca_af = obj.location
+                    # print('loca_after', loca_af)
+                    # min_dis = 20
+                    # for vertice in vertices:
+                    #     vrt_co = arch_matrix @ vertice.co
+                    #     disp = loca_af - vrt_co
+                    #     dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
+                    #     if dis < 3:
+                    #         print('calculte dist', dis, vertice.index) 
+                    #         if dis < min_dis:
+                    #             min_dis = dis
+                    #             min_index = vertice.index
+                    # vertices[min_index].select = True
+                    # vrt_co_ = arch_matrix @ vertices[min_index].co
+                    # obj.location[0] = vrt_co_[0]
+                    # obj.location[1] = vrt_co_[1]
+                    # bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+                # else:
+                #     temp_loca = mathutils.Vector((0, 0, 0))
+                #     num = 0
+                #     tooth_vertices = obj.data.vertices
+                #     for vrt in tooth_vertices:
+                #         if vrt.co[2] < 0 and abs(vrt.co[0]) < 0.3 and abs(vrt.co[1]) < 0.3:
+                #             temp_co = tooth_matrix @ vrt.co
+                #             temp_loca = temp_loca + temp_co
+                #             num = num + 1
+                #     world_loca = temp_loca / num
+                #     print('world_loca', world_loca)
+                #     context.scene.cursor.location = world_loca
+                #     bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+                #     min_dis = 20
+                #     for vertice in vertices:
+                #         vrt_co = arch_matrix @ vertice.co
+                #         disp = world_loca - vrt_co
+                #         dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
+                #         if dis < 5:
+                #             print('calculte dist', dis, vertice.index) 
+                #             if dis < min_dis:
+                #                 min_dis = dis
+                #                 min_index = vertice.index
+                #     vertices[min_index].select = True
+                #     vrt_co_ = arch_matrix @ vertices[min_index].co
+                #     obj.location[0] = vrt_co_[0]
+                #     obj.location[1] = vrt_co_[1]
+                #     bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
                 print('-----------------------------------------------------------------')
                 obj.select_set(False) 
 
