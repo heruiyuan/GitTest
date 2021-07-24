@@ -36,12 +36,8 @@ if not dir in sys.path:
     sys.path.append(dir)
 
 # from fillToothHole import fillSingleToothHole, fill_all_teeth_hide
-from tip_torque import select_tooth_Tip_Torque
-from tip_torque import get_tooth_surface_matrix
-from tip_torque import ShowMessageBox
-from tip_torque import getTip
-from tip_torque import getTorque
 
+from intersection import get_insect_deep
 
 from movePanel import recover_homogenous_affine_transformation
 from movePanel import create_plane_three_point
@@ -467,7 +463,7 @@ def update(self, context, operate_id):
         b = (M_orient.row[0][1], M_orient.row[1][1], M_orient.row[2][1])
         c = (M_orient.row[0][2], M_orient.row[1][2], M_orient.row[2][2])
         bpy.ops.transform.rotate(value=disp_angle, orient_axis='Z', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, False, True), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-    else:
+    elif operate_type == 'B':
         current_tor = get_torque(tooth_object, M_orient)
         prop_name = 'Tor_' + tooth_number
         update_tor = mytool.get(prop_name)
@@ -480,7 +476,8 @@ def update(self, context, operate_id):
         c = (M_orient.row[0][2], M_orient.row[1][2], M_orient.row[2][2])
         
         bpy.ops.transform.rotate(value=disp_angle, orient_axis='X', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(True, False, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-
+    else:
+        pass
     tooth_object.select_set(False)
 
     
@@ -660,6 +657,10 @@ class MyProperties(bpy.types.PropertyGroup):
     Tor_47: bpy.props.FloatProperty(name="tor47", description="Torque value of Tooth 47", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_47'))
     Tip_48: bpy.props.FloatProperty(name="tip48", description="Tip value of Tooth 48", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_48'))
     Tor_48: bpy.props.FloatProperty(name="tor48", description="Torque value of Tooth 48", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_48'))
+
+    embed_11_21: bpy.props.FloatProperty(name="11_21", description="Embed volume between 21 and 11", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_11_21'))
+    embed_11_12: bpy.props.FloatProperty(name="11_12", description="Embed volume between 11 and 12", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_11_12'))
+    embed_21_22: bpy.props.FloatProperty(name="21_22", description="Embed volume between 21 and 22", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_21_22'))
 
 class MESH_TO_ready_seperate_teeth(bpy.types.Operator):
     """Read for seperating teeth"""
@@ -4418,6 +4419,7 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
     bl_label = "Auto Arrage"
 
     def execute(self, context):
+        tooth_num_list = ['11','12','13','21','22','23','31','32','33','41','42','43']
         scene = context.scene
         mytool = scene.my_tool
         
@@ -4477,7 +4479,51 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
         vertices = dental_arch.data.vertices
         edges = dental_arch.data.edges
         arch_matrix = dental_arch.matrix_world.copy()
-
+        edge_keys = dental_arch.data.edge_keys.copy()
+        a = []
+        c = []
+        for edge_key in edge_keys:
+            a.append(edge_key[0])
+            a.append(edge_key[1])
+        a.sort()
+        from collections import Counter
+        count = dict(Counter(a))
+        c.append([key for key, value in count.items() if value == 1])
+        print('one vertex edge', c)
+        first_p_index = 0
+        if len(c[0]) == 2:
+            co_wo = arch_matrix @ vertices[c[0][0]].co
+            if mytool.up_down == 'UP_':
+                if co_wo[0] < 0:
+                    first_p_index = c[0][0]
+                else:
+                    first_p_index = c[0][1]
+            else:
+                if co_wo[0] > 0:
+                    first_p_index = c[0][0]
+                else:
+                    first_p_index = c[0][1]
+        else:
+            print('Error ！！！！')
+            return {'CANCELLED'}
+        print('first vertex is:', first_p_index)
+        arch_vrt_index_list = []
+        connect_vertex = first_p_index
+        for i in range(len(vertices)):
+            for edge_key in edge_keys:
+                if edge_key[0] == connect_vertex:
+                    connect_vertex = edge_key[1]
+                    arch_vrt_index_list.append(edge_key[1])
+                    edge_keys.remove(edge_key)
+                    break
+                if edge_key[1] == connect_vertex:
+                    connect_vertex = edge_key[0]
+                    arch_vrt_index_list.append(edge_key[0])
+                    edge_keys.remove(edge_key)
+                    break
+        arch_vrt_index_list.insert(0, first_p_index)
+        print('vrt_index_list:', arch_vrt_index_list)
+        t_numb_vrt_index = dict()
         bpy.ops.object.select_all(action='DESELECT')
         for obj in context.collection.objects:
             if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
@@ -4488,7 +4534,9 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                 min_index = 0
                 loca = obj.location
                 tooth_matrix = obj.matrix_world.copy()
-                
+                tooth_vertices = obj.data.vertices
+                tooth_number = obj.name.split('_')[1]
+
                 for vertice in vertices:
                     disp = loca - vertice.co
                     dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
@@ -4584,87 +4632,100 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                 c = (M_orient.row[2][0],M_orient.row[2][1],M_orient.row[2][2])
 
                 bpy.ops.transform.rotate(value=theta, orient_axis='Y', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, True, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+                
+                a = M_orient.copy()
+                a.transpose()
+                b = a.to_4x4()
+                b.row[0][3] = obj.location[0]
+                b.row[1][3] = obj.location[1]
+                b.row[2][3] = obj.location[2]
+                b_inv = b.inverted()
+
+
                 if mytool.up_down == 'UP_':
-                    a = M_orient.copy()
-                    a.transpose()
-                    b = a.to_4x4()
-                    b.row[0][3] = obj.location[0]
-                    b.row[1][3] = obj.location[1]
-                    b.row[2][3] = obj.location[2]
                     # bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, align='WORLD', location=(0, 0, 0))
                     # context.object.matrix_local = b
-                    bpy.ops.object.select_all(action='DESELECT')
+                    # bpy.ops.object.select_all(action='DESELECT')
+
                     # move tooth into right position
-                    # temp_min = 100
-                    # temp_max = -100
-                    # tooth_vertices = obj.data.vertices
-                    # for vrt in tooth_vertices:
-                    #     if vrt.co[2] < 0 and abs(vrt.co[0]) < 0.3:
-                    #         vrt.select = True
-                    #         if vrt.co[2] < temp_min:
-                    #             temp_min = vrt.co[2]
-                    #         if vrt.co[2] > temp_max:
-                    #             temp_max = vrt.co[2]
-                    # print(temp_min,temp_max)
-                    # z_co = (temp_max + temp_min) / 2
-                    # co = mathutils.Vector((0,0,z_co))
-                    # new_co = tooth_matrix @ co
-                    # print('world co', new_co)
-                    # loca_x = new_co[0]
-                    # loca_y = new_co[1]
-                    # cursor = mathutils.Vector((loca_x, loca_y, 0))
-                    # context.scene.cursor.location = cursor
-                    # bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
-                    # loca_af = obj.location
-                    # print('loca_after', loca_af)
-                    # min_dis = 20
-                    # for vertice in vertices:
-                    #     vrt_co = arch_matrix @ vertice.co
-                    #     disp = loca_af - vrt_co
-                    #     dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
-                    #     if dis < 3:
-                    #         print('calculte dist', dis, vertice.index) 
-                    #         if dis < min_dis:
-                    #             min_dis = dis
-                    #             min_index = vertice.index
-                    # vertices[min_index].select = True
-                    # vrt_co_ = arch_matrix @ vertices[min_index].co
-                    # obj.location[0] = vrt_co_[0]
-                    # obj.location[1] = vrt_co_[1]
+                    temp_min = 100
+                    temp_max = -100
+                    for vrt in tooth_vertices:
+                        tem_world = tooth_matrix @ vrt.co
+                        vrt_co = b_inv @ tem_world
+                        if vrt_co[2] < 0 and abs(vrt_co[0]) < 0.3:
+                            if tooth_number in tooth_num_list:
+                                temp_max = 2
+                                temp_min = 0    
+                            else:
+                                if vrt.co[2] < temp_min:
+                                    temp_min = vrt.co[2]
+                                if vrt.co[2] > temp_max:
+                                    temp_max = vrt.co[2]
+                    print(temp_min, temp_max)
+                    z_co = (temp_max + temp_min) / 4
+                    co = mathutils.Vector((0, 0, z_co))
+                    new_co = tooth_matrix @ co
+                    print('world co', new_co)
+                    cursor = mathutils.Vector((new_co[0], new_co[1], 0))
+                    context.scene.cursor.location = cursor
+                    bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+                    loca_af = obj.location
+                    print('loca_after', loca_af)
+                    min_dis = 20
+                    for vertice in vertices:
+                        vrt_co = arch_matrix @ vertice.co
+                        disp = loca_af - vrt_co
+                        dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
+                        if dis < 3:
+                            print('calculte dist', dis, vertice.index) 
+                            if dis < min_dis:
+                                min_dis = dis
+                                min_index = vertice.index
+                    vertices[min_index].select = True
+                    vrt_co_ = arch_matrix @ vertices[min_index].co
+                    obj.location[0] = vrt_co_[0]
+                    obj.location[1] = vrt_co_[1]
+                    t_numb_vrt_index[tooth_number] = min_index
                     # bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
-                # else:
-                #     temp_loca = mathutils.Vector((0, 0, 0))
-                #     num = 0
-                #     tooth_vertices = obj.data.vertices
-                #     for vrt in tooth_vertices:
-                #         if vrt.co[2] < 0 and abs(vrt.co[0]) < 0.3 and abs(vrt.co[1]) < 0.3:
-                #             temp_co = tooth_matrix @ vrt.co
-                #             temp_loca = temp_loca + temp_co
-                #             num = num + 1
-                #     world_loca = temp_loca / num
-                #     print('world_loca', world_loca)
-                #     context.scene.cursor.location = world_loca
-                #     bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
-                #     min_dis = 20
-                #     for vertice in vertices:
-                #         vrt_co = arch_matrix @ vertice.co
-                #         disp = world_loca - vrt_co
-                #         dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
-                #         if dis < 5:
-                #             print('calculte dist', dis, vertice.index) 
-                #             if dis < min_dis:
-                #                 min_dis = dis
-                #                 min_index = vertice.index
-                #     vertices[min_index].select = True
-                #     vrt_co_ = arch_matrix @ vertices[min_index].co
-                #     obj.location[0] = vrt_co_[0]
-                #     obj.location[1] = vrt_co_[1]
-                #     bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+                else:
+                    temp_y = 100
+                    min_y_index = 0
+                    world_local = 0
+                    for vrt in tooth_vertices:
+                        tem_world = tooth_matrix @ vrt.co
+                        vrt_co = b_inv @ tem_world
+                        if vrt_co[2] < 0 and abs(vrt_co[0]) < 0.3 and vrt_co[1] < 0:
+                            if temp_y > vrt_co[1]:
+                                temp_y = vrt_co[1]
+                                min_y_index = vrt.index
+                                world_local = tem_world
+                    
+                    world_local[2] = 0
+                    print('world_loca', world_local)
+                    context.scene.cursor.location = world_local
+                    bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+                    min_dis = 20
+                    for vertice in vertices:
+                        vrt_co = arch_matrix @ vertice.co
+                        disp = world_local - vrt_co
+                        dis = math.sqrt(disp[0]*disp[0] + disp[1]*disp[1])
+                        if dis < min_dis:
+                            min_dis = dis
+                            min_index = vertice.index
+                    vertices[min_index].select = True
+                    vrt_co_ = arch_matrix @ vertices[min_index].co
+                    obj.location[0] = vrt_co_[0]
+                    obj.location[1] = vrt_co_[1]
+                    t_numb_vrt_index[tooth_number] = min_index
+                    # bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+                print('dic:', t_numb_vrt_index)
                 print('-----------------------------------------------------------------')
-                obj.select_set(False) 
+                obj.select_set(False)
+                
+        context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
+        context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
 
-
-                 
         bpy.ops.ed.undo_push()
         
 
@@ -4827,60 +4888,99 @@ class MESH_TO_test(bpy.types.Operator):
     bl_label = "Test"
 
     def execute(self, context):
-        scene = context.scene
-        mytool = scene.my_tool
+        mytool = context.scene.my_tool
         if mytool.up_down == 'UP_':
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
-            jawplaneName = 'jawPlane_' + mytool.up_down
+            colle_name = 'Curves_U'
         else:
-            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
-            jawplaneName = 'jawPlane_' + mytool.up_down
+            colle_name = 'Curves_D'
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[colle_name]
 
+        jawplaneName = 'jawPlane_' + mytool.up_down
+        arch_name = 'dental_arch_' + mytool.up_down
+
+       
+
+        # calculate collision
+        arrange_list = []
         bpy.ops.object.select_all(action='DESELECT')
         for obj in context.collection.objects:
             if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
                 context.view_layer.objects.active = obj
                 obj.select_set(True)
+                tooth_number = obj.name.split('_')[1]
+                arrange_list.append(int(tooth_number))
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.select_all(action='DESELECT')
+                bpy.ops.mesh.select_non_manifold()
+                bpy.context.scene.transform_orientation_slots[0].type = 'GLOBAL'
+                bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 4), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, True), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
                 bpy.ops.object.mode_set(mode='OBJECT')
-                matrix_world = obj.matrix_world.copy()
-                obj_loca = obj.location.copy()
-                polygons = obj.data.polygons
-                vertex_index = []
-                cusp_points_hight=polygons[0].center[1]
-                for face in polygons:
-                    if face.center[2]<0 and cusp_points_hight>face.center[1]:
-                        cusp_points_hight = face.center[1]
-                        vertex_index.append(face.index)
-                print(obj.name, 'min hight:', cusp_points_hight)
-
-                dir = mathutils.Vector((0, 0, 1))
-                dist = 10
-                origin = mathutils.Vector((0, cusp_points_hight/4, -10))
-                result = obj.ray_cast(origin, dir, distance=dist)
-                polygons[result[3]].select = True
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.select_more()
-                bpy.ops.mesh.select_more()
-                bpy.ops.object.mode_set(mode='OBJECT')
-                normal_vector = mathutils.Vector((0, 0, 0))
-                num = 0
-                for face in polygons:
-                    if face.select == True:
-                        normal_vector = normal_vector + face.normal
-                        num = num + 1
+                bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
                 obj.select_set(False)
-                normal_vector = normal_vector / num
-                normal_vector.normalize()
-                face_normal = (matrix_world @ normal_vector) - obj_loca
-                face_normal.normalize()
-                print('face_normal', face_normal)
-                x_axis = mathutils.Vector((matrix_world.row[0][0], matrix_world.row[1][0], matrix_world[2][0]))
-                y_axis = x_axis.cross(face_normal)
-                y_axis.normalize()
-                x_axis = face_normal.cross(y_axis)
-                x_axis.normalize()
+
+        arrange_list.sort()
+        print(arrange_list)
+        for num in arrange_list:
+            tooth_name = 'Tooth_' + str(num)
+            obj = context.collection.objects[tooth_name]
+            M = obj.matrix_local.copy()
+            M_inv = M.inverted()
+
+            if num == 11:
+                R_tooth_name = 'Tooth_21'
+                L_tooth_name = 'Tooth_12'
+                L_tooth_object = context.collection.objects.get(L_tooth_name)
+                R_tooth_object = context.collection.objects.get(R_tooth_name)
+
+                # dir_L = obj.location - L_tooth_object.location
+                # dir_L.normalize()
+                # dir_R = obj.location - R_tooth_object.location
+                # dir_R.normalize()
+                # a = get_insect_deep(obj, L_tooth_object, dir_L)
+                # b = get_insect_deep(obj, R_tooth_object, dir_R)
+                # print(a,b)
+                if R_tooth_object != None:
+                    R_matrix_local = R_tooth_object.matrix_local.copy()
+                    R_vertices = R_tooth_object.data.vertices
+
+                    dir_local = (M_inv @ R_tooth_object.location)
+                    dir_local.normalize()
+                    neg_dir_local = -dir_local
+                    print('direction', dir_local)
+                    max_dis = -20
+                    min_dis = 100
+                    cast_quantity = 0
+                    for vrt in R_vertices:
+                        if vrt.co[0] > 0 and vrt.select == False:
+                            r_co = M_inv @ R_matrix_local @ vrt.co
+                            result = obj.ray_cast(r_co, dir_local, distance=10)
+                            result_neg = obj.ray_cast(r_co, neg_dir_local, distance=10)
+                            if result[0] == True:
+                                cast_quantity = cast_quantity + 1
+                                v_disp = result[1] - r_co
+                                dis_ = math.sqrt(v_disp[0]*v_disp[0] + v_disp[1]*v_disp[1] + v_disp[2]*v_disp[2])
+                                if dis_ > max_dis:
+                                    max_dis = dis_
+                            if result_neg[0] == True:
+                                v_disp = result_neg[1] - r_co
+                                dis_ = math.sqrt(v_disp[0]*v_disp[0] + v_disp[1]*v_disp[1] + v_disp[2]*v_disp[2])
+                                if dis_ < min_dis:
+                                    min_dis = dis_
+                    if cast_quantity != 0:
+                        value = -max_dis
+                    else:
+                        value = min_dis
+                    mytool.embed_11_21 = value
+                    print('Embed Value:', value)
+
+                # else:
+                #     print('Left tooth is missing')
+
+
+
+                # if num == 21:
+                #     R_tooth_name = 'Tooth_12'
+                #     L_num_name = 'Tooth_21'
 
                 # get_torque(obj)
         
@@ -5053,27 +5153,33 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
                 split.label(text="", text_ctxt="", translate=True, icon='NONE', icon_value=0)
                 split.label(text="Tip", text_ctxt="Tip Value", translate=True, icon='NONE', icon_value=0)
                 split.label(text="Torque", text_ctxt="Torque Value", translate=True, icon='NONE', icon_value=0)
+                split.label(text="Embed", text_ctxt="Embed Value", translate=True, icon='NONE', icon_value=0)
+
                 if mytool.up_down == 'UP_':
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="11", text_ctxt="", translate=False, icon='NONE', icon_value=0)
                     split.prop(mytool, 'Tip_11', text='')
                     split.prop(mytool, 'Tor_11', text='')
+                    split.prop(mytool,'embed_11_21', text='11-21')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="12", text_ctxt="", translate=False, icon='NONE', icon_value=0)
                     split.prop(mytool, 'Tip_12', text='')
                     split.prop(mytool, 'Tor_12', text='')
+                    split.prop(mytool,'embed_11_12', text='11-12')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="13", text_ctxt="", translate=False, icon='NONE', icon_value=0)
                     split.prop(mytool, 'Tip_13', text='')
                     split.prop(mytool, 'Tor_13', text='')
+                    split.prop(mytool,'embed_21_22', text='21-22')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="14", text_ctxt="", translate=False, icon='NONE', icon_value=0)
                     split.prop(mytool, 'Tip_14', text='')
                     split.prop(mytool, 'Tor_14', text='')
+
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="15", text_ctxt="", translate=False, icon='NONE', icon_value=0)
