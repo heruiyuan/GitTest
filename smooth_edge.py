@@ -480,6 +480,66 @@ def update(self, context, operate_id):
         pass
     tooth_object.select_set(False)
 
+def get_embed(obj1, obj2):
+    obj2_matrix_local = obj2.matrix_local.copy()
+    obj2_vertices = obj2.data.vertices
+    M = obj1.matrix_local.copy()
+    M_inv = M.inverted()
+    dir_local = (M_inv @ obj2.location)
+    dir_local.normalize()
+    dir_local[2] = 0
+    neg_dir_local = -dir_local
+    print('direction', dir_local)
+    P_test_point = mathutils.Vector((2.5, 0, 0))
+    N_test_point = mathutils.Vector((-2.5, 0, 0))
+    P_local = M_inv @ obj2_matrix_local @ P_test_point
+    N_local = M_inv @ obj2_matrix_local @ N_test_point
+    dis_P = math.sqrt(P_local[0]*P_local[0] + P_local[1]*P_local[1] + P_local[2]*P_local[2])
+    dis_N = math.sqrt(N_local[0]*N_local[0] + N_local[1]*N_local[1] + N_local[2]*N_local[2])
+    max_dis = -20
+    min_dis = 100
+    cast_quantity = 0
+
+    for vrt in obj2_vertices:
+        if dis_P > dis_N:
+            if (vrt.co[0] < 0) and (vrt.select == False):
+                r_co = M_inv @ obj2_matrix_local @ vrt.co
+                result = obj1.ray_cast(r_co, dir_local, distance=10)
+                result_neg = obj1.ray_cast(r_co, neg_dir_local, distance=10)
+                if result[0] == True:
+                    cast_quantity = cast_quantity + 1
+                    v_disp = result[1] - r_co
+                    dis_ = math.sqrt(v_disp[0]*v_disp[0] + v_disp[1]*v_disp[1] + v_disp[2]*v_disp[2])
+                    if dis_ > max_dis:
+                        max_dis = dis_
+                if result_neg[0] == True:
+                    v_disp = result_neg[1] - r_co
+                    dis_ = math.sqrt(v_disp[0]*v_disp[0] + v_disp[1]*v_disp[1] + v_disp[2]*v_disp[2])
+                    if dis_ < min_dis:
+                        min_dis = dis_
+        else:
+            if (vrt.co[0] > 0) and (vrt.select == False):
+                r_co = M_inv @ obj2_matrix_local @ vrt.co
+                result = obj1.ray_cast(r_co, dir_local, distance=10)
+                result_neg = obj1.ray_cast(r_co, neg_dir_local, distance=10)
+                if result[0] == True:
+                    cast_quantity = cast_quantity + 1
+                    v_disp = result[1] - r_co
+                    dis_ = math.sqrt(v_disp[0]*v_disp[0] + v_disp[1]*v_disp[1] + v_disp[2]*v_disp[2])
+                    if dis_ > max_dis:
+                        max_dis = dis_
+                if result_neg[0] == True:
+                    v_disp = result_neg[1] - r_co
+                    dis_ = math.sqrt(v_disp[0]*v_disp[0] + v_disp[1]*v_disp[1] + v_disp[2]*v_disp[2])
+                    if dis_ < min_dis:
+                        min_dis = dis_
+
+    if cast_quantity != 0:
+        value = -max_dis
+    else:
+        value = min_dis
+    return value
+   
     
 class MyProperties(bpy.types.PropertyGroup):
     selected_object_name : bpy.props.StringProperty(name="")
@@ -660,7 +720,21 @@ class MyProperties(bpy.types.PropertyGroup):
 
     embed_11_21: bpy.props.FloatProperty(name="11_21", description="Embed volume between 21 and 11", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_11_21'))
     embed_11_12: bpy.props.FloatProperty(name="11_12", description="Embed volume between 11 and 12", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_11_12'))
+    embed_12_13: bpy.props.FloatProperty(name="12_13", description="Embed volume between 12 and 13", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_12_13'))
+    embed_13_14: bpy.props.FloatProperty(name="13_14", description="Embed volume between 13 and 14", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_13_14'))
+    embed_14_15: bpy.props.FloatProperty(name="14_15", description="Embed volume between 14 and 15", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_14_15'))
+    embed_15_16: bpy.props.FloatProperty(name="15_16", description="Embed volume between 15 and 16", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_15_16'))
+    embed_16_17: bpy.props.FloatProperty(name="16_17", description="Embed volume between 16 and 17", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_16_17'))
+    embed_17_18: bpy.props.FloatProperty(name="17_18", description="Embed volume between 17 and 18", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_17_18'))
+    
     embed_21_22: bpy.props.FloatProperty(name="21_22", description="Embed volume between 21 and 22", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_21_22'))
+    embed_21_22: bpy.props.FloatProperty(name="22_23", description="Embed volume between 22 and 23", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_22_23'))
+    embed_21_22: bpy.props.FloatProperty(name="23_24", description="Embed volume between 23 and 24", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_23_24'))
+    embed_21_22: bpy.props.FloatProperty(name="24_25", description="Embed volume between 24 and 25", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_24_25'))
+    embed_21_22: bpy.props.FloatProperty(name="25_26", description="Embed volume between 25 and 26", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_25_26'))
+    embed_21_22: bpy.props.FloatProperty(name="26_27", description="Embed volume between 26 and 27", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_26_27'))
+    embed_21_22: bpy.props.FloatProperty(name="27_28", description="Embed volume between 27 and 28", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_27_28'))
+
 
 class MESH_TO_ready_seperate_teeth(bpy.types.Operator):
     """Read for seperating teeth"""
@@ -4898,8 +4972,6 @@ class MESH_TO_test(bpy.types.Operator):
         jawplaneName = 'jawPlane_' + mytool.up_down
         arch_name = 'dental_arch_' + mytool.up_down
 
-       
-
         # calculate collision
         arrange_list = []
         bpy.ops.object.select_all(action='DESELECT')
@@ -4921,16 +4993,34 @@ class MESH_TO_test(bpy.types.Operator):
         arrange_list.sort()
         print(arrange_list)
         for num in arrange_list:
-            tooth_name = 'Tooth_' + str(num)
-            obj = context.collection.objects[tooth_name]
-            M = obj.matrix_local.copy()
-            M_inv = M.inverted()
+            tooth_name1 = 'Tooth_' + str(num)
+            tooth_name2 = 'Tooth_' + str(num+1)
+            obj1 = context.collection.objects[tooth_name1]
+            obj2 = context.collection.objects.get(tooth_name2)
 
-            if num == 11:
-                R_tooth_name = 'Tooth_21'
-                L_tooth_name = 'Tooth_12'
-                L_tooth_object = context.collection.objects.get(L_tooth_name)
-                R_tooth_object = context.collection.objects.get(R_tooth_name)
+            if obj2 != None:
+                value1 = get_embed(obj1, obj2)
+                value2 = get_embed(obj2, obj1)
+
+                if value1 < 0 and value2 > 0:
+                    value_embed = value1
+                elif value2 < 0 and value1 > 0:
+                    value_embed = value2
+                else:
+                    if abs(value1) > abs(value2):
+                        value_embed = value1
+                    else:
+                        value_embed = value2
+                print(obj1.name, obj2.name)
+                print(value_embed)
+                print('-------------------------')
+
+
+            # if num == 11:
+            #     R_tooth_name = 'Tooth_21'
+            #     L_tooth_name = 'Tooth_12'
+            #     L_tooth_object = context.collection.objects.get(L_tooth_name)
+            #     R_tooth_object = context.collection.objects.get(R_tooth_name)
 
                 # dir_L = obj.location - L_tooth_object.location
                 # dir_L.normalize()
@@ -4939,50 +5029,12 @@ class MESH_TO_test(bpy.types.Operator):
                 # a = get_insect_deep(obj, L_tooth_object, dir_L)
                 # b = get_insect_deep(obj, R_tooth_object, dir_R)
                 # print(a,b)
-                if R_tooth_object != None:
-                    R_matrix_local = R_tooth_object.matrix_local.copy()
-                    R_vertices = R_tooth_object.data.vertices
-
-                    dir_local = (M_inv @ R_tooth_object.location)
-                    dir_local.normalize()
-                    neg_dir_local = -dir_local
-                    print('direction', dir_local)
-                    max_dis = -20
-                    min_dis = 100
-                    cast_quantity = 0
-                    for vrt in R_vertices:
-                        if vrt.co[0] > 0 and vrt.select == False:
-                            r_co = M_inv @ R_matrix_local @ vrt.co
-                            result = obj.ray_cast(r_co, dir_local, distance=10)
-                            result_neg = obj.ray_cast(r_co, neg_dir_local, distance=10)
-                            if result[0] == True:
-                                cast_quantity = cast_quantity + 1
-                                v_disp = result[1] - r_co
-                                dis_ = math.sqrt(v_disp[0]*v_disp[0] + v_disp[1]*v_disp[1] + v_disp[2]*v_disp[2])
-                                if dis_ > max_dis:
-                                    max_dis = dis_
-                            if result_neg[0] == True:
-                                v_disp = result_neg[1] - r_co
-                                dis_ = math.sqrt(v_disp[0]*v_disp[0] + v_disp[1]*v_disp[1] + v_disp[2]*v_disp[2])
-                                if dis_ < min_dis:
-                                    min_dis = dis_
-                    if cast_quantity != 0:
-                        value = -max_dis
-                    else:
-                        value = min_dis
-                    mytool.embed_11_21 = value
-                    print('Embed Value:', value)
-
+                
                 # else:
                 #     print('Left tooth is missing')
-
-
-
                 # if num == 21:
                 #     R_tooth_name = 'Tooth_12'
                 #     L_num_name = 'Tooth_21'
-
-                # get_torque(obj)
         
         return {'FINISHED'}
 
