@@ -540,8 +540,27 @@ def get_embed(obj1, obj2):
         value = min_dis
     return value
    
-    
+def get_embed_value(obj1, obj2):
+    value1 = get_embed(obj1, obj2)
+    value2 = get_embed(obj2, obj1)
+
+    if value1 < 0 and value2 > 0:
+        value_embed = value1
+    elif value2 < 0 and value1 > 0:
+        value_embed = value2
+    else:
+        if abs(value1) > abs(value2):
+            value_embed = value1
+        else:
+            value_embed = value2
+    return value_embed
+
+class DictProperty():
+    t_numb_vrt_index = dict()
+    tooth_number_list = []
+
 class MyProperties(bpy.types.PropertyGroup):
+    
     selected_object_name : bpy.props.StringProperty(name="")
     y_direction : bpy.props.FloatVectorProperty(name="Y axis direction of tooth in local coordinate", subtype='XYZ', precision=2, size=3, default=(0.0, 0.0,0.0))
     z_direction : bpy.props.FloatVectorProperty(name="Z axis direction of tooth in local coordinate", subtype='XYZ', precision=2, size=3, default=(0.0, 0.0,0.0))
@@ -718,23 +737,41 @@ class MyProperties(bpy.types.PropertyGroup):
     Tip_48: bpy.props.FloatProperty(name="tip48", description="Tip value of Tooth 48", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_48'))
     Tor_48: bpy.props.FloatProperty(name="tor48", description="Torque value of Tooth 48", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_48'))
 
-    embed_11_21: bpy.props.FloatProperty(name="11_21", description="Embed volume between 21 and 11", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_11_21'))
-    embed_11_12: bpy.props.FloatProperty(name="11_12", description="Embed volume between 11 and 12", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_11_12'))
-    embed_12_13: bpy.props.FloatProperty(name="12_13", description="Embed volume between 12 and 13", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_12_13'))
-    embed_13_14: bpy.props.FloatProperty(name="13_14", description="Embed volume between 13 and 14", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_13_14'))
-    embed_14_15: bpy.props.FloatProperty(name="14_15", description="Embed volume between 14 and 15", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_14_15'))
-    embed_15_16: bpy.props.FloatProperty(name="15_16", description="Embed volume between 15 and 16", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_15_16'))
-    embed_16_17: bpy.props.FloatProperty(name="16_17", description="Embed volume between 16 and 17", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_16_17'))
-    embed_17_18: bpy.props.FloatProperty(name="17_18", description="Embed volume between 17 and 18", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_17_18'))
+    embed_11_21: bpy.props.FloatProperty(name="11_21", description="Embed volume between 21 and 11", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_11_21'))
     
-    embed_21_22: bpy.props.FloatProperty(name="21_22", description="Embed volume between 21 and 22", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_21_22'))
-    embed_21_22: bpy.props.FloatProperty(name="22_23", description="Embed volume between 22 and 23", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_22_23'))
-    embed_21_22: bpy.props.FloatProperty(name="23_24", description="Embed volume between 23 and 24", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_23_24'))
-    embed_21_22: bpy.props.FloatProperty(name="24_25", description="Embed volume between 24 and 25", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_24_25'))
-    embed_21_22: bpy.props.FloatProperty(name="25_26", description="Embed volume between 25 and 26", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_25_26'))
-    embed_21_22: bpy.props.FloatProperty(name="26_27", description="Embed volume between 26 and 27", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_26_27'))
-    embed_21_22: bpy.props.FloatProperty(name="27_28", description="Embed volume between 27 and 28", default=0.0, min=-50, max=50, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_27_28'))
+    embed_11_12: bpy.props.FloatProperty(name="11_12", description="Embed volume between 11 and 12", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_11_12'))
+    embed_12_13: bpy.props.FloatProperty(name="12_13", description="Embed volume between 12 and 13", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_12_13'))
+    embed_13_14: bpy.props.FloatProperty(name="13_14", description="Embed volume between 13 and 14", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_13_14'))
+    embed_14_15: bpy.props.FloatProperty(name="14_15", description="Embed volume between 14 and 15", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_14_15'))
+    embed_15_16: bpy.props.FloatProperty(name="15_16", description="Embed volume between 15 and 16", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_15_16'))
+    embed_16_17: bpy.props.FloatProperty(name="16_17", description="Embed volume between 16 and 17", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_16_17'))
+    embed_17_18: bpy.props.FloatProperty(name="17_18", description="Embed volume between 17 and 18", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_17_18'))
+    
+    embed_21_22: bpy.props.FloatProperty(name="21_22", description="Embed volume between 21 and 22", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_21_22'))
+    embed_22_23: bpy.props.FloatProperty(name="22_23", description="Embed volume between 22 and 23", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_22_23'))
+    embed_23_24: bpy.props.FloatProperty(name="23_24", description="Embed volume between 23 and 24", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_23_24'))
+    embed_24_25: bpy.props.FloatProperty(name="24_25", description="Embed volume between 24 and 25", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_24_25'))
+    embed_25_26: bpy.props.FloatProperty(name="25_26", description="Embed volume between 25 and 26", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_25_26'))
+    embed_26_27: bpy.props.FloatProperty(name="26_27", description="Embed volume between 26 and 27", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_26_27'))
+    embed_27_28: bpy.props.FloatProperty(name="27_28", description="Embed volume between 27 and 28", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_27_28'))
 
+    embed_31_41: bpy.props.FloatProperty(name="31_41", description="Embed volume between 31 and 41", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_31_41'))
+    
+    embed_31_32: bpy.props.FloatProperty(name="31_32", description="Embed volume between 31 and 32", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_31_42'))
+    embed_32_33: bpy.props.FloatProperty(name="32_33", description="Embed volume between 32 and 33", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_32_43'))
+    embed_33_34: bpy.props.FloatProperty(name="33_34", description="Embed volume between 33 and 34", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_33_44'))
+    embed_34_35: bpy.props.FloatProperty(name="34_35", description="Embed volume between 34 and 35", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_34_45'))
+    embed_35_36: bpy.props.FloatProperty(name="35_36", description="Embed volume between 35 and 36", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_35_46'))
+    embed_36_37: bpy.props.FloatProperty(name="36_37", description="Embed volume between 36 and 37", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_36_47'))
+    embed_37_38: bpy.props.FloatProperty(name="37_38", description="Embed volume between 37 and 38", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_37_48'))
+    
+    embed_41_42: bpy.props.FloatProperty(name="41_42", description="Embed volume between 41 and 42", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_41_42'))
+    embed_42_43: bpy.props.FloatProperty(name="42_43", description="Embed volume between 42 and 43", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_42_43'))
+    embed_43_44: bpy.props.FloatProperty(name="43_44", description="Embed volume between 43 and 44", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_43_44'))
+    embed_44_45: bpy.props.FloatProperty(name="44_45", description="Embed volume between 44 and 45", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_44_45'))
+    embed_45_46: bpy.props.FloatProperty(name="45_46", description="Embed volume between 45 and 46", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_45_46'))
+    embed_46_47: bpy.props.FloatProperty(name="46_47", description="Embed volume between 46 and 47", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_46_47'))
+    embed_47_48: bpy.props.FloatProperty(name="47_48", description="Embed volume between 47 and 48", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_47_48'))
 
 class MESH_TO_ready_seperate_teeth(bpy.types.Operator):
     """Read for seperating teeth"""
@@ -4496,6 +4533,8 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
         tooth_num_list = ['11','12','13','21','22','23','31','32','33','41','42','43']
         scene = context.scene
         mytool = scene.my_tool
+        dict_prop = scene.dic_prop
+        
         
         if mytool.up_down == 'UP_':
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
@@ -4506,6 +4545,7 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
             tip_torque = {'41':[2,2],'42':[2,2],'43':[5,-3],'44':[2,0],'45':[2,-5],'46':[0,-15],'47':[0,-15],'48':[0,0],'31':[2,2],'32':[2,2],'33':[5,-3],'34':[2,-5],'35':[2,-8],'36':[0,-15],'37':[0,-15],'38':[0,-15]}
             arch_name = 'down_arch'
 
+        # get tip and torque value 
         bpy.ops.object.select_all(action='DESELECT')
         for obj in context.collection.objects:
             if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
@@ -4549,55 +4589,10 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
         bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
 
         bpy.ops.object.select_all(action='DESELECT')
-
         vertices = dental_arch.data.vertices
         edges = dental_arch.data.edges
         arch_matrix = dental_arch.matrix_world.copy()
-        edge_keys = dental_arch.data.edge_keys.copy()
-        a = []
-        c = []
-        for edge_key in edge_keys:
-            a.append(edge_key[0])
-            a.append(edge_key[1])
-        a.sort()
-        from collections import Counter
-        count = dict(Counter(a))
-        c.append([key for key, value in count.items() if value == 1])
-        print('one vertex edge', c)
-        first_p_index = 0
-        if len(c[0]) == 2:
-            co_wo = arch_matrix @ vertices[c[0][0]].co
-            if mytool.up_down == 'UP_':
-                if co_wo[0] < 0:
-                    first_p_index = c[0][0]
-                else:
-                    first_p_index = c[0][1]
-            else:
-                if co_wo[0] > 0:
-                    first_p_index = c[0][0]
-                else:
-                    first_p_index = c[0][1]
-        else:
-            print('Error ！！！！')
-            return {'CANCELLED'}
-        print('first vertex is:', first_p_index)
-        arch_vrt_index_list = []
-        connect_vertex = first_p_index
-        for i in range(len(vertices)):
-            for edge_key in edge_keys:
-                if edge_key[0] == connect_vertex:
-                    connect_vertex = edge_key[1]
-                    arch_vrt_index_list.append(edge_key[1])
-                    edge_keys.remove(edge_key)
-                    break
-                if edge_key[1] == connect_vertex:
-                    connect_vertex = edge_key[0]
-                    arch_vrt_index_list.append(edge_key[0])
-                    edge_keys.remove(edge_key)
-                    break
-        arch_vrt_index_list.insert(0, first_p_index)
-        print('vrt_index_list:', arch_vrt_index_list)
-        t_numb_vrt_index = dict()
+        
         bpy.ops.object.select_all(action='DESELECT')
         for obj in context.collection.objects:
             if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
@@ -4678,7 +4673,7 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                     theta = -theta
                 z_axis = mathutils.Vector((axis_x, axis_y, 0))
                 z_axis.normalize()
-                print('z_axis', z_axis)
+                # print('z_axis', z_axis)
                 temp_x = vrt_1 - vrt_2
                 temp_x.normalize()
                 y_axis = temp_x.cross(z_axis)
@@ -4689,10 +4684,10 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                 else:
                     if y_axis[2] > 0:
                         y_axis[2] = -abs(y_axis[2])
-                print('y_axis', y_axis)
+                # print('y_axis', y_axis)
                 x_axis = y_axis.cross(z_axis)
                 x_axis.normalize()
-                print('x_axis', x_axis)
+                # print('x_axis', x_axis)
             
                 M_orient = mathutils.Matrix([x_axis, y_axis, z_axis])
                 M_orient.normalize()
@@ -4714,7 +4709,6 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                 b.row[1][3] = obj.location[1]
                 b.row[2][3] = obj.location[2]
                 b_inv = b.inverted()
-
 
                 if mytool.up_down == 'UP_':
                     # bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, align='WORLD', location=(0, 0, 0))
@@ -4760,7 +4754,7 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                     vrt_co_ = arch_matrix @ vertices[min_index].co
                     obj.location[0] = vrt_co_[0]
                     obj.location[1] = vrt_co_[1]
-                    t_numb_vrt_index[tooth_number] = min_index
+                    dict_prop.t_numb_vrt_index[tooth_number] = min_index
                     # bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
                 else:
                     temp_y = 100
@@ -4772,7 +4766,7 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                         if vrt_co[2] < 0 and abs(vrt_co[0]) < 0.3 and vrt_co[1] < 0:
                             if temp_y > vrt_co[1]:
                                 temp_y = vrt_co[1]
-                                min_y_index = vrt.index
+                                # min_y_index = vrt.index
                                 world_local = tem_world
                     
                     world_local[2] = 0
@@ -4791,19 +4785,178 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                     vrt_co_ = arch_matrix @ vertices[min_index].co
                     obj.location[0] = vrt_co_[0]
                     obj.location[1] = vrt_co_[1]
-                    t_numb_vrt_index[tooth_number] = min_index
+                    dict_prop.t_numb_vrt_index[tooth_number] = min_index
                     # bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
-                print('dic:', t_numb_vrt_index)
+                print('dic:', dict_prop.t_numb_vrt_index)
                 print('-----------------------------------------------------------------')
                 obj.select_set(False)
                 
         context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
         context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
 
+        # calculate collision
+        dict_prop.tooth_number_list.clear()
+        arrange_list = dict_prop.tooth_number_list
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in context.collection.objects:
+            if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
+                context.view_layer.objects.active = obj
+                obj.select_set(True)
+                tooth_number = obj.name.split('_')[1]
+                arrange_list.append(int(tooth_number))
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='DESELECT')
+                bpy.ops.mesh.select_non_manifold()
+                bpy.context.scene.transform_orientation_slots[0].type = 'GLOBAL'
+                bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 4), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, True), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+                bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
+                obj.select_set(False)
+
+        arrange_list.sort()
+        dict_prop.tooth_number_list = arrange_list
+        print('Teeth Number List:', dict_prop.tooth_number_list)
+
+        one_list = []
+        for num in arrange_list:
+            if num % 10 == 1:
+                one_list.append(num)
+            tooth_name1 = 'Tooth_' + str(num)
+            tooth_name2 = 'Tooth_' + str(num+1)
+            obj1 = context.collection.objects[tooth_name1]
+            obj2 = context.collection.objects.get(tooth_name2)
+
+            if obj2 != None:
+                value1 = get_embed(obj1, obj2)
+                value2 = get_embed(obj2, obj1)
+
+                if value1 < 0 and value2 > 0:
+                    value_embed = value1
+                elif value2 < 0 and value1 > 0:
+                    value_embed = value2
+                else:
+                    if abs(value1) > abs(value2):
+                        value_embed = value1
+                    else:
+                        value_embed = value2
+                print(value_embed, obj1.name, obj2.name)
+                print('-------------------------')
+                prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
+                setattr(mytool, prop_name, value_embed)
+        print('one list', one_list)
+        if len(one_list) == 2:
+            tooth_name1 = 'Tooth_' + str(one_list[0])
+            tooth_name2 = 'Tooth_' + str(one_list[1])
+            obj1 = context.collection.objects[tooth_name1]
+            obj2 = context.collection.objects[tooth_name2]
+            embed_value = get_embed_value(obj1, obj2)
+            print(embed_value, obj1.name, obj2.name)
+            print('-------------------------')
+            prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
+            setattr(mytool, prop_name, value_embed)
+        
         bpy.ops.ed.undo_push()
         
 
         return {'FINISHED'}
+
+class MESH_TO_automatic_set_collision(bpy.types.Operator):
+    """"Automatic Set Collision"""
+    bl_idname = "mesh.automatic_collision"
+    bl_label = "Auto Collision"
+    
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.my_tool
+        dict_prop = scene.dic_prop
+
+        bpy.ops.object.select_all(action='DESELECT')
+        if mytool.up_down == 'UP_':
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
+            first_prop_name = 'embed_11_21'
+        else:
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
+            first_prop_name = 'embed_31_41'
+        
+        dental_arch_name = 'dental_arch_' + mytool.up_down
+        dental_arch = bpy.data.objects.get(dental_arch_name)
+        if dental_arch is not None:
+            context.view_layer.objects.active = dental_arch
+            dental_arch.select_set(True)
+            arch_matrix = dental_arch.matrix_world.copy()
+            edge_keys = dental_arch.data.edge_keys.copy()
+            vertices = dental_arch.data.vertices
+            a = []
+            c = []
+            for edge_key in edge_keys:
+                a.append(edge_key[0])
+                a.append(edge_key[1])
+            a.sort()
+            from collections import Counter
+            count = dict(Counter(a))
+            c.append([key for key, value in count.items() if value == 1])
+            print('one vertex edge', c)
+            first_p_index = 0
+            if len(c[0]) == 2:
+                co_wo = arch_matrix @ vertices[c[0][0]].co
+                if mytool.up_down == 'UP_':
+                    if co_wo[0] < 0:
+                        first_p_index = c[0][0]
+                    else:
+                        first_p_index = c[0][1]
+                else:
+                    if co_wo[0] > 0:
+                        first_p_index = c[0][0]
+                    else:
+                        first_p_index = c[0][1]
+            else:
+                print('Error ！！！！')
+                return {'CANCELLED'}
+            print('first vertex is:', first_p_index)
+            arch_vrt_index_list = []
+            connect_vertex = first_p_index
+            for i in range(len(vertices)):
+                for edge_key in edge_keys:
+                    if edge_key[0] == connect_vertex:
+                        connect_vertex = edge_key[1]
+                        arch_vrt_index_list.append(edge_key[1])
+                        edge_keys.remove(edge_key)
+                        break
+                    if edge_key[1] == connect_vertex:
+                        connect_vertex = edge_key[0]
+                        arch_vrt_index_list.append(edge_key[0])
+                        edge_keys.remove(edge_key)
+                        break
+            arch_vrt_index_list.insert(0, first_p_index)
+            print('vrt_index_list:', arch_vrt_index_list)
+            print('center on arch:', dict_prop.t_numb_vrt_index)
+
+            embed_value = getattr(mytool, first_prop_name)
+            split = first_prop_name.split('_')
+            t_num1 = 'Tooth_' + split[1]
+            t_num2 = 'Tooth_' + split[2]
+            obj1 = context.collection.objects[t_num1]
+            obj2 = context.collection.objects[t_num2]
+            current_embed_value = get_embed_value(obj1, obj2)
+            print('aaaaaa', current_embed_value, embed_value)
+            if current_embed_value != embed_value:
+                pass
+            # tooth_number_list = dict_prop.tooth_number_list
+            # for num in tooth_number_list:
+            #     second_t_name = 'Tooth_' + str(num+1)
+            #     second_obj = context.collection.objects.get(second_t_name)
+            #     if second_obj is not None:
+                    
+            #         prop_name = 'embed_' + str(num) + '_' + str(num+1)
+            #         embed_value = getattr(mytool, prop_name)
+            #         print(prop_name, embed_value)
+        else:
+            return {'CANCELLED'}  
+
+
+
+        
+        return {'FINISHED'} 
 
 class MESH_TO_edit_arch(bpy.types.Operator):
     """"Edit Arch"""
@@ -4991,8 +5144,12 @@ class MESH_TO_test(bpy.types.Operator):
                 obj.select_set(False)
 
         arrange_list.sort()
-        print(arrange_list)
+        print('Teeth Number List:', arrange_list)
+
+        one_list = []
         for num in arrange_list:
+            if num % 10 == 1:
+                one_list.append(num)
             tooth_name1 = 'Tooth_' + str(num)
             tooth_name2 = 'Tooth_' + str(num+1)
             obj1 = context.collection.objects[tooth_name1]
@@ -5011,9 +5168,35 @@ class MESH_TO_test(bpy.types.Operator):
                         value_embed = value1
                     else:
                         value_embed = value2
-                print(obj1.name, obj2.name)
-                print(value_embed)
+                print(value_embed, obj1.name, obj2.name)
                 print('-------------------------')
+                prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
+                setattr(mytool, prop_name, value_embed)
+
+        if len(one_list) == 2:
+            tooth_name1 = 'Tooth_' + str(num)
+            tooth_name2 = 'Tooth_' + str(num+1)
+            obj1 = context.collection.objects[tooth_name1]
+            obj2 = context.collection.objects.get(tooth_name2)
+            value1 = get_embed(obj1, obj2)
+            value2 = get_embed(obj2, obj1)
+
+            if value1 < 0 and value2 > 0:
+                value_embed = value1
+            elif value2 < 0 and value1 > 0:
+                value_embed = value2
+            else:
+                if abs(value1) > abs(value2):
+                    value_embed = value1
+                else:
+                    value_embed = value2
+            print(value_embed, obj1.name, obj2.name)
+            print('-------------------------')
+            prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
+            setattr(mytool, prop_name, value_embed)
+
+
+        bpy.ops.ed.undo_push()
 
 
             # if num == 11:
@@ -5203,181 +5386,273 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
                 row = col.row(align=True)  
                 split = row.split(factor= 0.1, align=True)
                 split.label(text="", text_ctxt="", translate=True, icon='NONE', icon_value=0)
+                split = split.split(factor= 0.2, align=True)
                 split.label(text="Tip", text_ctxt="Tip Value", translate=True, icon='NONE', icon_value=0)
-                split.label(text="Torque", text_ctxt="Torque Value", translate=True, icon='NONE', icon_value=0)
+                split = split.split(factor= 0.2, align=True)
+                split.label(text="Tor", text_ctxt="Torque Value", translate=True, icon='NONE', icon_value=0)
                 split.label(text="Embed", text_ctxt="Embed Value", translate=True, icon='NONE', icon_value=0)
 
                 if mytool.up_down == 'UP_':
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="11", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_11', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_11', text='')
                     split.prop(mytool,'embed_11_21', text='11-21')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="12", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_12', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_12', text='')
                     split.prop(mytool,'embed_11_12', text='11-12')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="13", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_13', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_13', text='')
-                    split.prop(mytool,'embed_21_22', text='21-22')
+                    split.prop(mytool,'embed_12_13', text='12-13')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="14", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_14', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_14', text='')
-
+                    split.prop(mytool,'embed_13_14', text='13-14')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="15", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_15', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_15', text='')
+                    split.prop(mytool,'embed_14_15', text='14-15')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="16", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_16', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_16', text='')
+                    split.prop(mytool,'embed_15_16', text='15-16')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="17", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_17', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_17', text='')
+                    split.prop(mytool,'embed_16_17', text='16-17')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="18", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_18', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_18', text='')
+                    split.prop(mytool,'embed_17_18', text='17-18')
 
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="21", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_21', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_21', text='')
+                    split.prop(mytool,'embed_11_21', text='11-21')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="22", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_22', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_22', text='')
+                    split.prop(mytool,'embed_21_22', text='21-22')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="23", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_23', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_23', text='')
+                    split.prop(mytool,'embed_22_23', text='22-23')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="24", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_24', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_24', text='')
+                    split.prop(mytool,'embed_23_24', text='23-24')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="25", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_25', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_25', text='')
+                    split.prop(mytool,'embed_24_25', text='24-25')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="26", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_26', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_26', text='')
+                    split.prop(mytool,'embed_25_26', text='25-26')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="27", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_27', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_27', text='')
+                    split.prop(mytool,'embed_26_27', text='26-27')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="28", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_28', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_28', text='')
+                    split.prop(mytool,'embed_27_28', text='27-28')
                 else:
-
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="31", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_31', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_31', text='')
+                    split.prop(mytool,'embed_31_41', text='31-41')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="32", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_32', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_32', text='')
+                    split.prop(mytool,'embed_31_32', text='31-32')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="33", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_33', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_33', text='')
+                    split.prop(mytool,'embed_32_33', text='32-33')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="34", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_34', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_34', text='')
+                    split.prop(mytool,'embed_33_34', text='33-34')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="35", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_35', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_35', text='')
+                    split.prop(mytool,'embed_34_35', text='34-35')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="36", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_36', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_36', text='')
+                    split.prop(mytool,'embed_35_36', text='35-36')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="37", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_37', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_37', text='')
+                    split.prop(mytool,'embed_36_37', text='36-37')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="38", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_38', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_38', text='')
+                    split.prop(mytool,'embed_37_38', text='37-38')
 
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="41", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_41', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_41', text='')
+                    split.prop(mytool,'embed_31_41', text='31-41')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="42", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_42', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_42', text='')
+                    split.prop(mytool,'embed_41_42', text='41-42')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="43", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_43', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_43', text='')
+                    split.prop(mytool,'embed_42_43', text='42-43')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="44", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_44', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_44', text='')
+                    split.prop(mytool,'embed_43_44', text='43-44')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="45", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_45', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_45', text='')
+                    split.prop(mytool,'embed_44_45', text='44-45')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="46", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_46', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_46', text='')
+                    split.prop(mytool,'embed_45_46', text='45-46')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="47", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_47', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_47', text='')
+                    split.prop(mytool,'embed_46_47', text='46-47')
                     row = col.row(align=True)
                     split = row.split(factor= 0.1, align=True)
                     split.label(text="48", text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tip_48', text='')
+                    split = split.split(factor= 0.2, align=True)
                     split.prop(mytool, 'Tor_48', text='')
+                    split.prop(mytool,'embed_47_48', text='47-48')
 
-    
 def exec_read_global_peremeter(commend,key):
     _locals = locals()
     exec(commend,globals(),_locals)
@@ -5615,6 +5890,7 @@ classes = [MESH_TO_smooth_tooth_edge,
     MESH_TO_test,
     MESH_TO_edit_arch,
     MESH_TO_select_three_points,
+    MESH_TO_automatic_set_collision,
 ]
 
 def register():
@@ -5622,12 +5898,13 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.Scene.my_tool = bpy.props.PointerProperty(type=MyProperties)
     bpy.types.Scene.reloadBlend = bpy.props.PointerProperty(type=BlendFileProperties)
-
+    bpy.types.Scene.dic_prop = DictProperty()
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
     del bpy.types.Scene.my_tool
     del bpy.types.Scene.reloadBlend
+    del bpy.types.Scene.dic_prop
 
 if __name__ == '__main__':
     register()
