@@ -11,6 +11,7 @@ bl_info = {
     "category": "Mesh",
 }
 import collections
+from enum import EnumMeta
 from types import CodeType, resolve_bases
 from typing import Text
 from numpy.lib import angle
@@ -543,17 +544,18 @@ def get_embed(obj1, obj2):
 def get_embed_value(obj1, obj2):
     value1 = get_embed(obj1, obj2)
     value2 = get_embed(obj2, obj1)
-
-    if value1 < 0 and value2 > 0:
+    if (value1 < 0) and (value2 > 0):
         value_embed = value1
-    elif value2 < 0 and value1 > 0:
+    elif (value2 < 0) and (value1 > 0):
         value_embed = value2
     else:
-        if abs(value1) > abs(value2):
+        if value1 < value2:
             value_embed = value1
         else:
             value_embed = value2
     return value_embed
+
+    
 
 class DictProperty():
     t_numb_vrt_index = dict()
@@ -4582,6 +4584,7 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
         bpy.ops.mesh.looptools_space(influence=100, input='selected', interpolation='cubic', lock_x=False, lock_y=False, lock_z=False)
         bpy.ops.mesh.subdivide()
         bpy.ops.mesh.subdivide()
+        bpy.ops.mesh.subdivide()
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode='OBJECT')
         context.scene.cursor.location = mathutils.Vector((0.0, 0.0, 0.0))
@@ -4827,22 +4830,11 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
             obj2 = context.collection.objects.get(tooth_name2)
 
             if obj2 != None:
-                value1 = get_embed(obj1, obj2)
-                value2 = get_embed(obj2, obj1)
-
-                if value1 < 0 and value2 > 0:
-                    value_embed = value1
-                elif value2 < 0 and value1 > 0:
-                    value_embed = value2
-                else:
-                    if abs(value1) > abs(value2):
-                        value_embed = value1
-                    else:
-                        value_embed = value2
-                print(value_embed, obj1.name, obj2.name)
+                embed_value1 = get_embed_value(obj1, obj2)   
+                print(embed_value1, obj1.name, obj2.name)
                 print('-------------------------')
                 prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
-                setattr(mytool, prop_name, value_embed)
+                setattr(mytool, prop_name, embed_value1)
         print('one list', one_list)
         if len(one_list) == 2:
             tooth_name1 = 'Tooth_' + str(one_list[0])
@@ -4853,7 +4845,7 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
             print(embed_value, obj1.name, obj2.name)
             print('-------------------------')
             prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
-            setattr(mytool, prop_name, value_embed)
+            setattr(mytool, prop_name, embed_value)
         
         bpy.ops.ed.undo_push()
         
@@ -4929,7 +4921,8 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
                         break
             arch_vrt_index_list.insert(0, first_p_index)
             print('vrt_index_list:', arch_vrt_index_list)
-            print('center on arch:', dict_prop.t_numb_vrt_index)
+            t_num_v_index = dict_prop.t_numb_vrt_index.copy()
+            print('center on arch:', t_num_v_index)
 
             embed_value = getattr(mytool, first_prop_name)
             split = first_prop_name.split('_')
@@ -4938,9 +4931,81 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
             obj1 = context.collection.objects[t_num1]
             obj2 = context.collection.objects[t_num2]
             current_embed_value = get_embed_value(obj1, obj2)
-            print('aaaaaa', current_embed_value, embed_value)
-            if current_embed_value != embed_value:
-                pass
+            print('current_embed_value and embed_value', current_embed_value, embed_value)
+            print('bbbbbb',t_num_v_index[split[1]])
+            q = 0
+            # move while
+            while (abs(embed_value - current_embed_value) > 0.1) :
+                idx1 = []
+                idx2 = []
+                for idx, elem in enumerate(arch_vrt_index_list):
+                    if elem == t_num_v_index[split[1]]:  # 11
+                        idx1.append(idx-1)
+                        idx1.append(idx+1)
+                    if elem == t_num_v_index[split[2]]:  # 12
+                        idx2.append(idx-1)
+                        idx2.append(idx+1)
+                p1_indxe = arch_vrt_index_list[idx1[0]]
+                p2_indxe = arch_vrt_index_list[idx1[1]]
+                disp = vertices[p1_indxe].co - vertices[p2_indxe].co
+                dis_a = math.sqrt(disp[0] * disp[0] + disp[1] * disp[1] + disp[2] * disp[2]) 
+                print('dis_a', dis_a , idx1, idx2)
+                print('hello is :', arch_vrt_index_list[idx1[0]], arch_vrt_index_list[idx1[1]])
+
+                a = embed_value - current_embed_value
+                a_ = abs(a)
+                if (a < 0) and (a_ > dis_a):
+                    co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx1[1]]].co
+                    obj1.location[0] = co_1[0]
+                    obj1.location[1] = co_1[1]
+                    t_num_v_index[split[0]] = arch_vrt_index_list[idx1[1]]
+
+                    co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[0]]].co
+                    obj2.location[0] = co_2[0]
+                    obj2.location[1] = co_2[1]
+                    t_num_v_index[split[1]] = arch_vrt_index_list[idx2[0]]
+
+                    current_embed_value = get_embed_value(obj1, obj2)
+                    prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
+                    setattr(mytool, prop_name, current_embed_value)
+                    print('current_embed_value', current_embed_value)    
+                elif (a > 0) and (a_ > dis_a):
+                    co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx1[0]]].co
+                    obj1.location[0] = co_1[0]
+                    obj1.location[1] = co_1[1]
+                    t_num_v_index[split[0]] = arch_vrt_index_list[idx1[0]]
+                    
+                    co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[1]]].co
+                    obj2.location[0] = co_2[0]
+                    obj2.location[1] = co_2[1]
+                    t_num_v_index[split[1]] = arch_vrt_index_list[idx2[1]]
+
+                    current_embed_value = get_embed_value(obj1, obj2)
+                    prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
+                    setattr(mytool, prop_name, current_embed_value)
+                    print('current_embed_value', current_embed_value)  
+                elif (a < 0):
+                    q = q + 1
+                    print('I am JJ')
+                else:
+                    pass
+                if q == 2:
+                    break
+                # if current_embed_value < 0:
+                #     if embed_value < 0:
+                        
+                #     else:
+                #         pass
+                # else:
+                #     if embed_value < 0:
+                #         pass
+                #     else:
+                #         pass
+                # disp = embed_value - current_embed_value   # -4 - -2 = -2      -2 - -4 = 2
+                # if disp > 0:
+                #     pass
+                # else: 
+                #     pass
             # tooth_number_list = dict_prop.tooth_number_list
             # for num in tooth_number_list:
             #     second_t_name = 'Tooth_' + str(num+1)
