@@ -326,7 +326,7 @@ def get_plane_ref_coord_matrix(plane_object, tooth_object, up_down):
 
         polygon_normal = (matrix_world @ polygon_normal) - loca
         polygon_normal.normalize()
-        print('polygon normal', polygon_normal)
+        # print('polygon normal', polygon_normal)
     else:
         print('Jaw polygons has no face normal')
         return {'CANCELLED'}
@@ -448,7 +448,7 @@ def update(self, context, operate_id):
     bpy.ops.object.select_all(action='DESELECT')
     context.view_layer.objects.active = tooth_object
     tooth_object.select_set(True)
-    print('selected_objects:', len(bpy.context.selected_objects))
+    # print('selected_objects:', len(bpy.context.selected_objects))
     M_orient = get_plane_ref_coord_matrix(plane_object, tooth_object, mytool.up_down)
     if operate_type == 'A':
         current_tip = get_tip(tooth_object, M_orient, int(tooth_number))
@@ -490,7 +490,7 @@ def get_embed(obj1, obj2):
     dir_local.normalize()
     dir_local[2] = 0
     neg_dir_local = -dir_local
-    print('direction', dir_local)
+    # print('direction', dir_local)
     P_test_point = mathutils.Vector((2.5, 0, 0))
     N_test_point = mathutils.Vector((-2.5, 0, 0))
     P_local = M_inv @ obj2_matrix_local @ P_test_point
@@ -534,7 +534,6 @@ def get_embed(obj1, obj2):
                     dis_ = math.sqrt(v_disp[0]*v_disp[0] + v_disp[1]*v_disp[1] + v_disp[2]*v_disp[2])
                     if dis_ < min_dis:
                         min_dis = dis_
-
     if cast_quantity != 0:
         value = -max_dis
     else:
@@ -548,6 +547,11 @@ def get_embed_value(obj1, obj2):
         value_embed = value1
     elif (value2 < 0) and (value1 > 0):
         value_embed = value2
+    elif (value1 > 0) and (value2 > 0):
+        if value1 < value2:
+            value_embed = value2
+        else:
+            value_embed = value1
     else:
         if value1 < value2:
             value_embed = value1
@@ -555,6 +559,22 @@ def get_embed_value(obj1, obj2):
             value_embed = value2
     return value_embed
 
+def move(obj, dir, value):
+    print('move object:', obj.name)
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    z_axis = mathutils.Vector((0, 0, 1))
+    dir.normalize()
+    y_axis = dir.cross(z_axis)
+    y_axis.normalize()
+    z_axis = dir.cross(y_axis)
+    z_axis.normalize()
+    a = (dir[0], dir[1], dir[2])
+    b = (y_axis[0], y_axis[1], y_axis[2])
+    c = (z_axis[0], z_axis[1], z_axis[2])
+    bpy.ops.transform.translate(value=(value, 0, 0), orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(True, False, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+    obj.select_set(False)
     
 
 class DictProperty():
@@ -4887,7 +4907,7 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
             from collections import Counter
             count = dict(Counter(a))
             c.append([key for key, value in count.items() if value == 1])
-            print('one vertex edge', c)
+            # print('one vertex edge', c)
             first_p_index = 0
             if len(c[0]) == 2:
                 co_wo = arch_matrix @ vertices[c[0][0]].co
@@ -4904,7 +4924,7 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
             else:
                 print('Error ！！！！')
                 return {'CANCELLED'}
-            print('first vertex is:', first_p_index)
+
             arch_vrt_index_list = []
             connect_vertex = first_p_index
             for i in range(len(vertices)):
@@ -4924,6 +4944,11 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
             t_num_v_index = dict_prop.t_numb_vrt_index.copy()
             print('center on arch:', t_num_v_index)
 
+            p1_indxe = arch_vrt_index_list[0]
+            p2_indxe = arch_vrt_index_list[2]
+            disp = vertices[p1_indxe].co - vertices[p2_indxe].co
+            dis_a = math.sqrt(disp[0] * disp[0] + disp[1] * disp[1] + disp[2] * disp[2]) 
+
             embed_value = getattr(mytool, first_prop_name)
             split = first_prop_name.split('_')
             t_num1 = 'Tooth_' + split[1]
@@ -4932,89 +4957,182 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
             obj2 = context.collection.objects[t_num2]
             current_embed_value = get_embed_value(obj1, obj2)
             print('current_embed_value and embed_value', current_embed_value, embed_value)
-            print('bbbbbb',t_num_v_index[split[1]])
-            q = 0
+            print('bbbbbb',t_num_v_index[split[1]],t_num_v_index[split[2]])
+            
             # move while
-            while (abs(embed_value - current_embed_value) > 0.1) :
+            while (abs(embed_value - current_embed_value) > 0.05) :
                 idx1 = []
                 idx2 = []
+                mid_index1 = 0
+                mid_index2 = 0
                 for idx, elem in enumerate(arch_vrt_index_list):
                     if elem == t_num_v_index[split[1]]:  # 11
+                        mid_index1 = idx
                         idx1.append(idx-1)
                         idx1.append(idx+1)
                     if elem == t_num_v_index[split[2]]:  # 12
+                        mid_index2 = idx
                         idx2.append(idx-1)
                         idx2.append(idx+1)
-                p1_indxe = arch_vrt_index_list[idx1[0]]
-                p2_indxe = arch_vrt_index_list[idx1[1]]
-                disp = vertices[p1_indxe].co - vertices[p2_indxe].co
-                dis_a = math.sqrt(disp[0] * disp[0] + disp[1] * disp[1] + disp[2] * disp[2]) 
-                print('dis_a', dis_a , idx1, idx2)
-                print('hello is :', arch_vrt_index_list[idx1[0]], arch_vrt_index_list[idx1[1]])
 
                 a = embed_value - current_embed_value
                 a_ = abs(a)
+                print('a value is :', a, embed_value, current_embed_value)
                 if (a < 0) and (a_ > dis_a):
                     co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx1[1]]].co
                     obj1.location[0] = co_1[0]
                     obj1.location[1] = co_1[1]
-                    t_num_v_index[split[0]] = arch_vrt_index_list[idx1[1]]
+                    t_num_v_index[split[1]] = arch_vrt_index_list[idx1[1]]
 
                     co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[0]]].co
                     obj2.location[0] = co_2[0]
                     obj2.location[1] = co_2[1]
-                    t_num_v_index[split[1]] = arch_vrt_index_list[idx2[0]]
+                    t_num_v_index[split[2]] = arch_vrt_index_list[idx2[0]]  
 
                     current_embed_value = get_embed_value(obj1, obj2)
                     prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
                     setattr(mytool, prop_name, current_embed_value)
-                    print('current_embed_value', current_embed_value)    
+                    print('111111111111111111111', current_embed_value)
                 elif (a > 0) and (a_ > dis_a):
                     co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx1[0]]].co
                     obj1.location[0] = co_1[0]
                     obj1.location[1] = co_1[1]
-                    t_num_v_index[split[0]] = arch_vrt_index_list[idx1[0]]
+                    t_num_v_index[split[1]] = arch_vrt_index_list[idx1[0]]
                     
                     co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[1]]].co
                     obj2.location[0] = co_2[0]
                     obj2.location[1] = co_2[1]
-                    t_num_v_index[split[1]] = arch_vrt_index_list[idx2[1]]
+                    t_num_v_index[split[2]] = arch_vrt_index_list[idx2[1]]
 
                     current_embed_value = get_embed_value(obj1, obj2)
                     prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
                     setattr(mytool, prop_name, current_embed_value)
-                    print('current_embed_value', current_embed_value)  
+                    print('22222222222222222222222',current_embed_value)
                 elif (a < 0):
-                    q = q + 1
-                    print('I am JJ')
+                    # print(arch_vrt_index_list[idx1[1]], arch_vrt_index_list[idx2[0]])
+                    mid1 = arch_matrix @ vertices[arch_vrt_index_list[mid_index1]].co
+                    mid2 = arch_matrix @ vertices[arch_vrt_index_list[mid_index2]].co
+                    co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx1[1]]].co
+                    co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[0]]].co
+                    dir1 = co_1 - mid1
+                    dir2 = co_2 - mid2
+
+                    move(obj1, dir1, 0.02)
+                    move(obj2, dir2, 0.02)
+                    current_embed_value = get_embed_value(obj1, obj2)
+                    prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
+                    setattr(mytool, prop_name, current_embed_value)
+                    print('dddddddddddddddddddddd', current_embed_value)
+                elif (a > 0):
+                    mid1 = arch_matrix @ vertices[arch_vrt_index_list[mid_index1]].co
+                    mid2 = arch_matrix @ vertices[arch_vrt_index_list[mid_index2]].co
+                    co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx1[0]]].co
+                    co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[1]]].co
+                    dir1 = co_1 - mid1
+                    dir2 = co_2 - mid2
+
+                    move(obj1, dir1, 0.02)
+                    move(obj2, dir2, 0.02)
+                    current_embed_value = get_embed_value(obj1, obj2)
+                    prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
+                    setattr(mytool, prop_name, current_embed_value)
+                    print('kkkkkkkkkkkkkkkkk', current_embed_value)
                 else:
                     pass
-                if q == 2:
-                    break
-                # if current_embed_value < 0:
-                #     if embed_value < 0:
-                        
-                #     else:
-                #         pass
-                # else:
-                #     if embed_value < 0:
-                #         pass
-                #     else:
-                #         pass
-                # disp = embed_value - current_embed_value   # -4 - -2 = -2      -2 - -4 = 2
-                # if disp > 0:
-                #     pass
-                # else: 
-                #     pass
-            # tooth_number_list = dict_prop.tooth_number_list
-            # for num in tooth_number_list:
-            #     second_t_name = 'Tooth_' + str(num+1)
-            #     second_obj = context.collection.objects.get(second_t_name)
-            #     if second_obj is not None:
+            
+            # move the other teeth
+            teeth_number_list = dict_prop.tooth_number_list.copy()
+            print('teeth_number_list', teeth_number_list)
+            for i in range(len(teeth_number_list)):
+                s_obj1 = str(teeth_number_list[i])
+                s_obj2 = str(teeth_number_list[i] + 1)
+                obj2_name = 'Tooth_' + s_obj2
+                obj1_name = 'Tooth_' + s_obj1
+                obj2 = context.collection.objects.get(obj2_name)
+                if obj2 is not None:
+                    prop_name = 'embed_' + s_obj1 + '_' + s_obj2
+                    embed_value = getattr(mytool, prop_name)
+                    obj1 = context.collection.objects[obj1_name]
+                    obj2 = context.collection.objects[obj2_name]
+
+                    current_embed_value = get_embed_value(obj1, obj2)
+                    print('current_embed_value, embed_value', current_embed_value, embed_value)
                     
-            #         prop_name = 'embed_' + str(num) + '_' + str(num+1)
-            #         embed_value = getattr(mytool, prop_name)
-            #         print(prop_name, embed_value)
+                    while (abs(embed_value - current_embed_value) > 0.05) :
+                        idx2 = []
+                        mid_index2 = 0
+                        for idx, elem in enumerate(arch_vrt_index_list):
+                            if elem == t_num_v_index[s_obj2]:  # 12
+                                mid_index2 = idx
+                                idx2.append(idx-1)
+                                idx2.append(idx+1)
+                                break
+                        
+                        a = embed_value - current_embed_value
+                        a_ = abs(a)
+                        print('a value is :', a, embed_value, current_embed_value)
+                        if (a < 0) and (a_ > (dis_a/2)):
+                            if s_obj1.startswith('1') or s_obj1.startswith('4'):
+                                co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx1[1]]].co
+                                obj1.location[0] = co_1[0]
+                                obj1.location[1] = co_1[1]
+                                t_num_v_index[split[1]] = arch_vrt_index_list[idx1[1]]
+                            else:
+                                co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[0]]].co
+                                obj2.location[0] = co_2[0]
+                                obj2.location[1] = co_2[1]
+                                t_num_v_index[split[2]] = arch_vrt_index_list[idx2[0]]  
+
+                                current_embed_value = get_embed_value(obj1, obj2)
+                                prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
+                                setattr(mytool, prop_name, current_embed_value)
+                                print('111111111111111111111', current_embed_value)
+                        elif (a > 0) and (a_ > dis_a):
+                            co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx1[0]]].co
+                            obj1.location[0] = co_1[0]
+                            obj1.location[1] = co_1[1]
+                            t_num_v_index[split[1]] = arch_vrt_index_list[idx1[0]]
+                            
+                            co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[1]]].co
+                            obj2.location[0] = co_2[0]
+                            obj2.location[1] = co_2[1]
+                            t_num_v_index[split[2]] = arch_vrt_index_list[idx2[1]]
+
+                            current_embed_value = get_embed_value(obj1, obj2)
+                            prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
+                            setattr(mytool, prop_name, current_embed_value)
+                            print('22222222222222222222222',current_embed_value)
+                        elif (a < 0):
+                            # print(arch_vrt_index_list[idx1[1]], arch_vrt_index_list[idx2[0]])
+                            mid1 = arch_matrix @ vertices[arch_vrt_index_list[mid_index1]].co
+                            mid2 = arch_matrix @ vertices[arch_vrt_index_list[mid_index2]].co
+                            co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx1[1]]].co
+                            co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[0]]].co
+                            dir1 = co_1 - mid1
+                            dir2 = co_2 - mid2
+
+                            move(obj1, dir1, 0.02)
+                            move(obj2, dir2, 0.02)
+                            current_embed_value = get_embed_value(obj1, obj2)
+                            prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
+                            setattr(mytool, prop_name, current_embed_value)
+                            print('dddddddddddddddddddddd', current_embed_value)
+                        elif (a > 0):
+                            mid1 = arch_matrix @ vertices[arch_vrt_index_list[mid_index1]].co
+                            mid2 = arch_matrix @ vertices[arch_vrt_index_list[mid_index2]].co
+                            co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx1[0]]].co
+                            co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[1]]].co
+                            dir1 = co_1 - mid1
+                            dir2 = co_2 - mid2
+
+                            move(obj1, dir1, 0.02)
+                            move(obj2, dir2, 0.02)
+                            current_embed_value = get_embed_value(obj1, obj2)
+                            prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
+                            setattr(mytool, prop_name, current_embed_value)
+                            print('kkkkkkkkkkkkkkkkk', current_embed_value)
+                        else:
+                            pass
         else:
             return {'CANCELLED'}  
 
