@@ -4565,7 +4565,6 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
         mytool = scene.my_tool
         dict_prop = scene.dic_prop
         
-        
         if mytool.up_down == 'UP_':
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_U']
             tip_torque = {'11':[5,7],'12':[9,4],'13':[11,0],'14':[2,0],'15':[2,0],'16':[0,-8],'17':[0,-8],'18':[0,0],'21':[5,7],'22':[9,4],'23':[11,0],'24':[2,0],'25':[2,0],'26':[0,-8],'27':[0,-8],'28':[0,0]}
@@ -5110,8 +5109,11 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
             
             # ----------------------------------move the other teeth----------------------------------
             current_embed_value = 0
-            teeth_number_list = dict_prop.tooth_number_list.copy()
-            
+            teeth_number_list = []
+            for obj_ in context.collection.objects:
+                if obj_.name.startswith('Tooth') and not obj_.name.endswith('_coord'):
+                    teeth_number_list.append(int(obj_.name.split('_')[1]))
+
             for i in range(len(teeth_number_list)):
                 s_obj1 = str(teeth_number_list[i])
                 s_obj2 = str(teeth_number_list[i] + 1)
@@ -5228,12 +5230,6 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
         
         bpy.ops.ed.undo_push()   
         return {'FINISHED'}
-
-
-
-
-        
-         
 
 class MESH_TO_edit_arch(bpy.types.Operator):
     """"Edit Arch"""
