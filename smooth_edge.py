@@ -486,15 +486,15 @@ def get_embed(obj1, obj2):
     obj2_vertices = obj2.data.vertices
     M = obj1.matrix_local.copy()
     M_inv = M.inverted()
-    a = obj1.location
+    a = obj1.location.copy()
     a[2] = 0
-    b = obj2.location
+    b = obj2.location.copy()
     b[2] = 0
     p1 = M_inv @ a
     p2 = M_inv @ b
     dir_local = p2 - p1
     neg_dir_local = -dir_local
-    # print('direction', dir_local)
+    
     P_test_point = mathutils.Vector((2.5, 0, 0))
     N_test_point = mathutils.Vector((-2.5, 0, 0))
     P_local = M_inv @ obj2_matrix_local @ P_test_point
@@ -503,8 +503,9 @@ def get_embed(obj1, obj2):
     dis_N = math.sqrt(N_local[0]*N_local[0] + N_local[1]*N_local[1] + N_local[2]*N_local[2])
     max_dis = -20
     min_dis = 100
-    cast_quantity = 0
 
+    cast_quantity = 0
+    # print('dis_P, dis_N', dis_P, dis_N)
     for vrt in obj2_vertices:
         if dis_P > dis_N:
             if (vrt.co[0] < 0) and (vrt.select == False):
@@ -538,6 +539,8 @@ def get_embed(obj1, obj2):
                     dis_ = math.sqrt(v_disp[0]*v_disp[0] + v_disp[1]*v_disp[1] + v_disp[2]*v_disp[2])
                     if dis_ < min_dis:
                         min_dis = dis_
+    # print('max_dis, min_dis', max_dis, min_dis)
+    # print('--------------------------')
     if cast_quantity != 0:
         value = -max_dis
     else:
@@ -547,8 +550,6 @@ def get_embed(obj1, obj2):
 def get_embed_value(obj1, obj2):
     value1 = get_embed(obj1, obj2)
     value2 = get_embed(obj2, obj1)
-    print('value1:', value1, 'value2:', value2)
-    print('loca1', obj1.location, 'loca2', obj2.location)
     if (value1 < 0) and (value2 > 0):
         value_embed = value1
     elif (value2 < 0) and (value1 > 0):
@@ -584,12 +585,10 @@ def move(obj, dir, value):
     obj.select_set(False)
     # print('object location', obj.location)
 
-    
 
 class DictProperty():
     t_numb_vrt_index = dict()
-    tooth_number_list = []
-
+    
 class MyProperties(bpy.types.PropertyGroup):
     
     selected_object_name : bpy.props.StringProperty(name="")
@@ -4314,8 +4313,8 @@ class MESH_TO_restore(bpy.types.Operator):
                 link_collection = bpy.data.collections['Curves_D']
             restore_object = context.collection.objects[restore_tooth_name]
             restore_object.hide_set(False)
-            restore_object.data.name = restore_tooth_name.lstrip('pick')
-            restore_object.name = restore_tooth_name.lstrip('pick')
+            restore_object.data.name = restore_tooth_name.lstrip('pick_')
+            restore_object.name = restore_tooth_name.lstrip('pick_')
             link_collection.objects.link(restore_object)
             context.collection.objects.unlink(restore_object)
             bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[link_collection.name]
@@ -4826,8 +4825,8 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
         context.scene.cursor.rotation_euler = mathutils.Vector((0.0, 0.0, 0.0))
 
         # calculate collision
-        dict_prop.tooth_number_list.clear()
-        arrange_list = dict_prop.tooth_number_list
+        
+        arrange_list = []
         bpy.ops.object.select_all(action='DESELECT')
         for obj in context.collection.objects:
             if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
@@ -4845,8 +4844,6 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                 obj.select_set(False)
 
         arrange_list.sort()
-        dict_prop.tooth_number_list = arrange_list
-        print('Teeth Number List:', dict_prop.tooth_number_list)
 
         one_list = []
         for num in arrange_list:
@@ -4995,10 +4992,11 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
                             obj2.location[1] = loc[1]
                         if len(idx1) == 3 and len(idx2) == 3:
                             break
-
+                    context.view_layer.update()
                     co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx1[0]]].co
                     obj1.location[0] = co_1[0]
                     obj1.location[1] = co_1[1]
+                    context.view_layer.update()
                     t_num_v_index[split[1]] = arch_vrt_index_list[idx1[0]]
                     mid_cur_embed_value = get_embed_value(obj1, obj2)
                     a = embed_value - mid_cur_embed_value
@@ -5007,6 +5005,7 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
                     co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[2]]].co
                     obj2.location[0] = co_2[0]
                     obj2.location[1] = co_2[1]
+                    context.view_layer.update()
                     t_num_v_index[split[2]] = arch_vrt_index_list[idx2[2]]
                     mid_cur_embed_value = get_embed_value(obj1, obj2)
                     a = embed_value - mid_cur_embed_value
@@ -5022,6 +5021,7 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
                             loc = arch_matrix @ vertices[elem].co
                             obj1.location[0] = loc[0]   
                             obj1.location[1] = loc[1]
+                            context.view_layer.update()
                         if elem == t_num_v_index[split[2]]:  # 12
                             idx2.append(idx-1)
                             idx2.append(idx)
@@ -5029,12 +5029,14 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
                             loc = arch_matrix @ vertices[elem].co
                             obj2.location[0] = loc[0] 
                             obj2.location[1] = loc[1]
+                            context.view_layer.update()
                         if len(idx1) == 3 and len(idx2) == 3:
                             break
 
                     co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx1[2]]].co
                     obj1.location[0] = co_1[0]
                     obj1.location[1] = co_1[1]
+                    context.view_layer.update()
                     t_num_v_index[split[1]] = arch_vrt_index_list[idx1[2]]
                     mid_cur_embed_value = get_embed_value(obj1, obj2)
                     a = embed_value - mid_cur_embed_value
@@ -5043,6 +5045,7 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
                     co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[0]]].co
                     obj2.location[0] = co_2[0]
                     obj2.location[1] = co_2[1]
+                    context.view_layer.update()
                     t_num_v_index[split[2]] = arch_vrt_index_list[idx2[0]]
                     mid_cur_embed_value = get_embed_value(obj1, obj2)
                     a = embed_value - mid_cur_embed_value
@@ -5133,7 +5136,7 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
                                     idx2.append(idx)
                                     idx2.append(idx+1)
                                     loc = arch_matrix @ vertices[elem].co
-                                    obj2.location[0] = loc[0]   
+                                    obj2.location[0] = loc[0] 
                                     obj2.location[1] = loc[1]
                                     break
                             if s_obj2.startswith('1') or s_obj2.startswith('3'):
@@ -5147,10 +5150,13 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
                                 obj2.location[1] = co_2[1]
                                 t_num_v_index[s_obj2] = arch_vrt_index_list[idx2[2]]
 
+                            context.view_layer.update()
                             current_embed_value = get_embed_value(obj1, obj2)   
                             a = embed_value - current_embed_value
-                            print('ggg', a)
                     elif (a < 0 and abs(a) > 0.001):
+                        bpy.ops.object.select_all(action='DESELECT')
+                        context.view_layer.objects.active = obj2
+                        obj2.select_set(True)
                         while (a < 0):
                             idx2 = []
                             for idx, elem in enumerate(arch_vrt_index_list):
@@ -5159,9 +5165,10 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
                                     idx2.append(idx)
                                     idx2.append(idx+1)
                                     loc = arch_matrix @ vertices[elem].co
-                                    obj2.location[0] = loc[0]   
-                                    obj2.location[1] = loc[1]
+                                    obj2.location[0] = loc[0] 
+                                    obj2.location[1] = loc[1] 
                                     break
+
                             if s_obj2.startswith('1') or s_obj2.startswith('3'):
                                 co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[2]]].co
                                 obj2.location[0] = co_2[0]
@@ -5173,166 +5180,55 @@ class MESH_TO_automatic_set_collision(bpy.types.Operator):
                                 obj2.location[1] = co_2[1]
                                 t_num_v_index[s_obj2] = arch_vrt_index_list[idx2[0]]
 
+                            context.view_layer.update()
                             current_embed_value = get_embed_value(obj1, obj2)   
                             a = embed_value - current_embed_value
-                            print('jjj', current_embed_value, obj1.name, obj2.name)
+                        obj2.select_set(False)
                     else:
-                        print('hello')
-                        pass
-                    
-                    print('a value is:', current_embed_value , obj1.name, obj2.name)
-                    current_embed_value = get_embed_value(obj1, obj2)
-                    print('oooooooo', current_embed_value)
-                    if (a < 0):
                         
+                        pass
+                    print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@')
+                    print('a value is:', current_embed_value , obj1.name, obj2.name)
+                
+                    if (a < 0):
                         print('a < 0')
-                        # while (abs(a) > 0.05):
-                        #     lo1 = obj1.location
-                        #     lo1[2] = 0
-                        #     lo2 = obj2.location
-                        #     lo2[2] = 0
-                        #     dir = lo2 - lo1
-                            
-                        #     move(obj2, dir, 0.01)
-                        #     current_embed_value = get_embed_value(obj1, obj2)
-                        #     a = embed_value - current_embed_value
+                        while (abs(a) > 0.05):
+                            lo1 = obj1.location.copy()
+                            lo1[2] = 0
+                            lo2 = obj2.location.copy()
+                            lo2[2] = 0
+                            dir = lo1 - lo2
+                            move(obj2, dir, 0.01)
+                            context.view_layer.update()
+                            current_embed_value = get_embed_value(obj1, obj2)
+                            a = embed_value - current_embed_value
                     else:
                         print('a > 0')
-                        # while (abs(a) > 0.05):
-                        #     lo1 = obj1.location
-                        #     lo1[2] = 0
-                        #     lo2 = obj2.location
-                        #     lo2[2] = 0
-                        #     dir = lo1 - lo2
-                        #     current_embed_value = get_embed_value(obj1, obj2)
-                        #     print('befor', current_embed_value, obj1.name, obj2.name)
-                        #     move(obj2, dir, 0.01)
-                        #     current_embed_value = get_embed_value(obj1, obj2)
-                        #     a = embed_value - current_embed_value 
-                        #     print('after', current_embed_value)
-                            
-                    # prop_name = 'embed_' + s_obj1 + '_' + s_obj2
-                    # setattr(mytool, prop_name, current_embed_value)  
+                        while (abs(a) > 0.05):
+                            lo1 = obj1.location.copy()
+                            lo1[2] = 0
+                            lo2 = obj2.location.copy()
+                            lo2[2] = 0
+                            dir = lo2 - lo1
+                            move(obj2, dir, 0.01)
+                            context.view_layer.update()
+                            current_embed_value = get_embed_value(obj1, obj2)
+                            a = embed_value - current_embed_value 
+                    prop_name = 'embed_' + s_obj1 + '_' + s_obj2
+                    setattr(mytool, prop_name, current_embed_value)  
 
-                    break
+                    num_back = int(s_obj2) + 1
+                    t_name = 'Tooth_' + str(num_back)
+                    t_obj = context.collection.objects.get(t_name)
+                    if t_obj is not None:
+                        temp = get_embed_value(obj2, t_obj)
+                        prop_name = 'embed_' + s_obj2 + '_' + str(num_back)
+                        setattr(mytool, prop_name, temp)
+                    print('Arrange', obj1.name, '-', obj2.name, 'Finished!')
+        
+        bpy.ops.ed.undo_push()   
+        return {'FINISHED'}
 
-
-                    # q = 0
-                    # while (abs(embed_value - current_embed_value) >= 0.05) :
-                        
-                    #     current_embed_value = get_embed_value(obj1, obj2)
-                    #     print('current_value, set_value', current_embed_value, embed_value)
-                    #     a = embed_value - current_embed_value
-                    #     a_ = abs(a)
-                    #     # print('current_embed_value', current_embed_value)
-                    #     print('a value is :', a , (arch_vrt_index_list[idx2[0]], arch_vrt_index_list[mid_index2], arch_vrt_index_list[idx2[1]]))
-
-                    #     if (a < 0) and (a_ > (dis_a/2)):
-                    #         if s_obj2.startswith('1') or s_obj2.startswith('3'):
-                    #             co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[1]]].co
-                    #             obj2.location[0] = co_2[0]
-                    #             obj2.location[1] = co_2[1]
-                    #             t_num_v_index[s_obj2] = arch_vrt_index_list[idx2[1]]
-                    #         else:
-                    #             co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[0]]].co
-                    #             obj2.location[0] = co_2[0]
-                    #             obj2.location[1] = co_2[1]
-                    #             t_num_v_index[s_obj2] = arch_vrt_index_list[idx2[0]] 
-                    #     elif (a > 0) and (a_ > (dis_a/2)):
-                    #         if s_obj2.startswith('1') or s_obj2.startswith('3'):
-                    #             co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[0]]].co
-                    #             obj2.location[0] = co_2[0]
-                    #             obj2.location[1] = co_2[1]
-                    #             t_num_v_index[s_obj2] = arch_vrt_index_list[idx2[0]]
-                    #         else:
-                    #             co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[1]]].co
-                    #             obj2.location[0] = co_2[0]
-                    #             obj2.location[1] = co_2[1]
-                    #             t_num_v_index[s_obj2] = arch_vrt_index_list[idx2[1]]  
-                    #     elif (a < 0):   # move inside
-                    #         mid2 = arch_matrix @ vertices[arch_vrt_index_list[mid_index2]].co
-                    #         if s_obj2.startswith('1') or s_obj2.startswith('3'):
-                    #             co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx2[1]]].co
-                    #         else:
-                    #             co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx2[0]]].co
-                    #         dir = co_1 - mid2
-                    #         move(obj2, dir, 0.01)
-                    #         current_embed_value = get_embed_value(obj1, obj2)
-                    #         print('3-after (a<0):', current_embed_value, (obj1.name, obj2.name))
-                    #     elif (a > 0):  # move outside
-                    #         mid2 = arch_matrix @ vertices[arch_vrt_index_list[mid_index2]].co
-                    #         if s_obj2.startswith('1') or s_obj2.startswith('3'):
-                    #             co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx2[0]]].co
-                    #         else:
-                    #             co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx2[1]]].co
-                    #         dir = co_1 - mid2
-                    #         move(obj2, dir, 0.01)
-                    #         current_embed_value = get_embed_value(obj1, obj2)
-                    #         print(obj1.name, obj2.name)
-                    #         print('4-after (a>0):', current_embed_value, (obj1.name, obj2.name))
-                    #     else:
-                    #         pass
-                        # q = q + 1
-                        # if q > 3:
-                        #     break
-                        # print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-
-
-            return {'FINISHED'}
-            # while (a > 0) :
-                
-            #     a = embed_value - mid_cur_embed_value
-            #     a_ = abs(a)
-            #     print('a value is :', a, embed_value, mid_cur_embed_value)
-            #     if (a < 0) and (a_ > dis_a):
-            #         co_1 = arch_matrix @ vertices[arch_vrt_index_list[idx1[1]]].co
-            #         obj1.location[0] = co_1[0]
-            #         obj1.location[1] = co_1[1]
-            #         t_num_v_index[split[1]] = arch_vrt_index_list[idx1[1]]
-
-            #         co_2 = arch_matrix @ vertices[arch_vrt_index_list[idx2[0]]].co
-            #         obj2.location[0] = co_2[0]
-            #         obj2.location[1] = co_2[1]
-            #         t_num_v_index[split[2]] = arch_vrt_index_list[idx2[0]]  
-
-                    
-            #     mid_cur_embed_value = get_embed_value(obj1, obj2)
-            #     prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj2.name.split('_')[1]
-            #     setattr(mytool, prop_name, mid_cur_embed_value)
-            #     print('mid_cur_embed_value', mid_cur_embed_value)
-            #     num1 = int(obj1.name.split('_')[1]) + 1
-            #     num2 = int(obj2.name.split('_')[1]) + 1
-            #     t_name1 = 'Tooth_' + str(num1)
-            #     t_name2 = 'Tooth_' + str(num2)
-            #     obj_a = context.collection.objects.get(t_name1)
-            #     obj_b = context.collection.objects.get(t_name2)
-            #     if obj_a is not None:
-            #         temp = get_embed_value(obj1, obj_a)
-            #         prop_name = 'embed_' + obj1.name.split('_')[1] + '_' + obj_a.name.split('_')[1]
-            #         setattr(mytool, prop_name, temp)
-            #     if obj_b is not None:
-            #         temp = get_embed_value(obj2, obj_b)
-            #         prop_name = 'embed_' + obj2.name.split('_')[1] + '_' + obj_b.name.split('_')[1]
-            #         setattr(mytool, prop_name, temp)
-            
-
-            
-            #         current_embed_value = get_embed_value(obj1, obj2)
-            #         print('current_embed_value', current_embed_value)
-            #         prop_name = 'embed_' + s_obj1 + '_' + s_obj2
-            #         setattr(mytool, prop_name, get_embed_value(obj1, obj2))
-            #         # print('current_embed_value', current_embed_value)
-
-            #         num_back = int(s_obj2) + 1
-            #         t_name = 'Tooth_' + str(num_back)
-            #         t_obj = context.collection.objects.get(t_name)
-            #         if t_obj is not None:
-            #             temp = get_embed_value(obj2, t_obj)
-            #             prop_name = 'embed_' + s_obj2 + '_' + str(num_back)
-            #             setattr(mytool, prop_name, temp)
-            #     print('==================================================')
-        # else:
-            # return {'CANCELLED'}  
 
 
 
