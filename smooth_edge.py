@@ -1502,7 +1502,7 @@ class MESH_TO_smooth_tooth_edge(bpy.types.Operator):
                 bpy.ops.object.editmode_toggle()        # enter 'EDIT_MESH' mode
                 bpy.ops.mesh.select_all(action='SELECT')
                 bpy.ops.mesh.dissolve_degenerate(threshold=0.15)
-                bpy.ops.mesh.remove_doubles(threshold=1.3)
+                bpy.ops.mesh.remove_doubles(threshold=1.0)
                 # add surface subdivision modifier
                 bpy.ops.object.modifier_add(type='SUBSURF')
                 bpy.context.object.modifiers["Subdivision"].levels = 2
@@ -1517,7 +1517,7 @@ class MESH_TO_smooth_tooth_edge(bpy.types.Operator):
                 bpy.context.object.modifiers["Smooth"].iterations = 5 
                 bpy.context.object.modifiers["Smooth"].show_in_editmode = True
                 bpy.context.object.modifiers["Smooth"].show_on_cage = True
-                bpy.context.object.modifiers["Smooth"].factor = 1.0
+                bpy.context.object.modifiers["Smooth"].factor = 0.65
                 
                 bpy.context.object.modifiers["Shrinkwrap"].show_on_cage = True
                 bpy.context.object.modifiers["Subdivision"].show_on_cage = True

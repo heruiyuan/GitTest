@@ -38,7 +38,6 @@ if not dir in sys.path:
 
 # from fillToothHole import fillSingleToothHole, fill_all_teeth_hide
 
-from intersection import get_insect_deep
 
 from movePanel import recover_homogenous_affine_transformation
 from movePanel import create_plane_three_point
@@ -430,8 +429,6 @@ def get_torque(tooth_object, K_orient):
     return angle_raidan
 
 def update(self, context, operate_id):
-    tooth_number = operate_id.split('_')[1]
-    operate_type = operate_id.split('_')[0]
     mytool = context.scene.my_tool
 
     if mytool.up_down == 'UP_':
@@ -439,47 +436,45 @@ def update(self, context, operate_id):
     else:
         bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children['Curves_D']
 
-    tooth_name = 'Tooth_' + tooth_number
-    tooth_object = context.collection.objects[tooth_name]
-
     jawplaneName = 'jawPlane_' + mytool.up_down
     plane_object = bpy.data.objects[jawplaneName]
 
     bpy.ops.object.select_all(action='DESELECT')
-    context.view_layer.objects.active = tooth_object
-    tooth_object.select_set(True)
-    # print('selected_objects:', len(bpy.context.selected_objects))
-    M_orient = get_plane_ref_coord_matrix(plane_object, tooth_object, mytool.up_down)
-    if operate_type == 'A':
-        current_tip = get_tip(tooth_object, M_orient, int(tooth_number))
-        prop_name = 'Tip_' + tooth_number
-        update_tip = mytool.get(prop_name)
-        disp_angle = current_tip - update_tip
-        if (20 < int(tooth_number) < 30) or (40 < int(tooth_number) < 50):
-            disp_angle = -disp_angle
-        print('Changed Tip:', update_tip * (180/math.pi))
-        print('Disprity angle:', disp_angle * (180/math.pi))
+    print('selected_objects:', bpy.context.selected_objects)
+    if (bpy.context.selected_objects) == 1:
+        print(bpy.context.selected_objects[0].name)
 
-        a = (M_orient.row[0][0], M_orient.row[1][0], M_orient.row[2][0]) 
-        b = (M_orient.row[0][1], M_orient.row[1][1], M_orient.row[2][1])
-        c = (M_orient.row[0][2], M_orient.row[1][2], M_orient.row[2][2])
-        bpy.ops.transform.rotate(value=disp_angle, orient_axis='Z', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, False, True), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-    elif operate_type == 'B':
-        current_tor = get_torque(tooth_object, M_orient)
-        prop_name = 'Tor_' + tooth_number
-        update_tor = mytool.get(prop_name)
-        disp_angle = update_tor - current_tor
-        print('Current_tor', current_tor * (180/math.pi))
-        print('Changed Tor:', update_tor * (180/math.pi))
-        print('Disprity angle:', disp_angle * (180/math.pi))
-        a = (M_orient.row[0][0], M_orient.row[1][0], M_orient.row[2][0])
-        b = (M_orient.row[0][1], M_orient.row[1][1], M_orient.row[2][1])
-        c = (M_orient.row[0][2], M_orient.row[1][2], M_orient.row[2][2])
+    # M_orient = get_plane_ref_coord_matrix(plane_object, tooth_object, mytool.up_down)
+    # if operate_id == 'A':
+    #     current_tip = get_tip(tooth_object, M_orient, int(tooth_number))
+    #     prop_name = 'Tip_' + tooth_number
+    #     update_tip = mytool.get(prop_name)
+    #     disp_angle = current_tip - update_tip
+    #     if (20 < int(tooth_number) < 30) or (40 < int(tooth_number) < 50):
+    #         disp_angle = -disp_angle
+    #     print('Changed Tip:', update_tip * (180/math.pi))
+    #     print('Disprity angle:', disp_angle * (180/math.pi))
+
+    #     a = (M_orient.row[0][0], M_orient.row[1][0], M_orient.row[2][0]) 
+    #     b = (M_orient.row[0][1], M_orient.row[1][1], M_orient.row[2][1])
+    #     c = (M_orient.row[0][2], M_orient.row[1][2], M_orient.row[2][2])
+    #     bpy.ops.transform.rotate(value=disp_angle, orient_axis='Z', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(False, False, True), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+    # elif operate_id == 'B':
+    #     current_tor = get_torque(tooth_object, M_orient)
+    #     prop_name = 'Tor_' + tooth_number
+    #     update_tor = mytool.get(prop_name)
+    #     disp_angle = update_tor - current_tor
+    #     print('Current_tor', current_tor * (180/math.pi))
+    #     print('Changed Tor:', update_tor * (180/math.pi))
+    #     print('Disprity angle:', disp_angle * (180/math.pi))
+    #     a = (M_orient.row[0][0], M_orient.row[1][0], M_orient.row[2][0])
+    #     b = (M_orient.row[0][1], M_orient.row[1][1], M_orient.row[2][1])
+    #     c = (M_orient.row[0][2], M_orient.row[1][2], M_orient.row[2][2])
         
-        bpy.ops.transform.rotate(value=disp_angle, orient_axis='X', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(True, False, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-    else:
-        pass
-    tooth_object.select_set(False)
+    #     bpy.ops.transform.rotate(value=disp_angle, orient_axis='X', orient_type='LOCAL', orient_matrix=(a, b, c), orient_matrix_type='LOCAL', constraint_axis=(True, False, False), mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+    # else:
+    #     pass
+    # tooth_object.select_set(False)
 
 def get_embed(obj1, obj2):
     obj2_matrix_local = obj2.matrix_local.copy()
@@ -699,110 +694,7 @@ class MyProperties(bpy.types.PropertyGroup):
     D_41: bpy.props.BoolProperty(name="41", description="Lost Tooth 41", default=False)
 
     UP_tipTorExpand: bpy.props.BoolProperty(name="Tip Tor Expand", description="Expand Tip and Torque Panel", default=False)
-    Tip_11: bpy.props.FloatProperty(name="tip11", description="Tip value of Tooth 11", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_11'))
-    Tor_11: bpy.props.FloatProperty(name="tor11", description="Torque value of Tooth 11", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_11'))
-    Tip_12: bpy.props.FloatProperty(name="tip12", description="Tip value of Tooth 12", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_12'))
-    Tor_12: bpy.props.FloatProperty(name="tor12", description="Torque value of Tooth 12", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_12'))
-    Tip_13: bpy.props.FloatProperty(name="tip13", description="Tip value of Tooth 13", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_13'))
-    Tor_13: bpy.props.FloatProperty(name="tor14", description="Torque value of Tooth 13", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_13'))
-    Tip_14: bpy.props.FloatProperty(name="tip14", description="Tip value of Tooth 14", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_14'))
-    Tor_14: bpy.props.FloatProperty(name="tor15", description="Torque value of Tooth 14", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_14'))
-    Tip_15: bpy.props.FloatProperty(name="tip15", description="Tip value of Tooth 15", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_15'))
-    Tor_15: bpy.props.FloatProperty(name="tor15", description="Torque value of Tooth 15", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_15'))
-    Tip_16: bpy.props.FloatProperty(name="tip16", description="Tip value of Tooth 16", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_16'))
-    Tor_16: bpy.props.FloatProperty(name="tor16", description="Torque value of Tooth 16", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_16'))
-    Tip_17: bpy.props.FloatProperty(name="tip17", description="Tip value of Tooth 17", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_17'))
-    Tor_17: bpy.props.FloatProperty(name="tor17", description="Torque value of Tooth 17", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_17'))
-    Tip_18: bpy.props.FloatProperty(name="tip18", description="Tip value of Tooth 18", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_18'))
-    Tor_18: bpy.props.FloatProperty(name="tor18", description="Torque value of Tooth 18", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_18'))
     
-    Tip_21: bpy.props.FloatProperty(name="tip21", description="Tip value of Tooth 21", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_21'))
-    Tor_21: bpy.props.FloatProperty(name="tor21", description="Torque value of Tooth 21", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_21'))
-    Tip_22: bpy.props.FloatProperty(name="tip22", description="Tip value of Tooth 22", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_22'))
-    Tor_22: bpy.props.FloatProperty(name="tor22", description="Torque value of Tooth 22", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_22'))
-    Tip_23: bpy.props.FloatProperty(name="tip23", description="Tip value of Tooth 23", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_23'))
-    Tor_23: bpy.props.FloatProperty(name="tor24", description="Torque value of Tooth 23", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_23'))
-    Tip_24: bpy.props.FloatProperty(name="tip24", description="Tip value of Tooth 24", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_24'))
-    Tor_24: bpy.props.FloatProperty(name="tor25", description="Torque value of Tooth 24", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_24'))
-    Tip_25: bpy.props.FloatProperty(name="tip25", description="Tip value of Tooth 25", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_25'))
-    Tor_25: bpy.props.FloatProperty(name="tor25", description="Torque value of Tooth 25", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_25'))
-    Tip_26: bpy.props.FloatProperty(name="tip26", description="Tip value of Tooth 26", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_26'))
-    Tor_26: bpy.props.FloatProperty(name="tor26", description="Torque value of Tooth 26", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_26'))
-    Tip_27: bpy.props.FloatProperty(name="tip27", description="Tip value of Tooth 27", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_27'))
-    Tor_27: bpy.props.FloatProperty(name="tor27", description="Torque value of Tooth 27", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_27'))
-    Tip_28: bpy.props.FloatProperty(name="tip28", description="Tip value of Tooth 28", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_28'))
-    Tor_28: bpy.props.FloatProperty(name="tor28", description="Torque value of Tooth 28", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_28'))
-    
-    Tip_31: bpy.props.FloatProperty(name="tip31", description="Tip value of Tooth 31", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_31'))
-    Tor_31: bpy.props.FloatProperty(name="tor31", description="Torque value of Tooth 31", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_31'))
-    Tip_32: bpy.props.FloatProperty(name="tip32", description="Tip value of Tooth 32", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_32'))
-    Tor_32: bpy.props.FloatProperty(name="tor32", description="Torque value of Tooth 32", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_32'))
-    Tip_33: bpy.props.FloatProperty(name="tip33", description="Tip value of Tooth 33", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_33'))
-    Tor_33: bpy.props.FloatProperty(name="tor34", description="Torque value of Tooth 33", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_33'))
-    Tip_34: bpy.props.FloatProperty(name="tip34", description="Tip value of Tooth 34", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_34'))
-    Tor_34: bpy.props.FloatProperty(name="tor35", description="Torque value of Tooth 34", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_34'))
-    Tip_35: bpy.props.FloatProperty(name="tip35", description="Tip value of Tooth 35", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_35'))
-    Tor_35: bpy.props.FloatProperty(name="tor35", description="Torque value of Tooth 35", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_35'))
-    Tip_36: bpy.props.FloatProperty(name="tip36", description="Tip value of Tooth 36", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_36'))
-    Tor_36: bpy.props.FloatProperty(name="tor36", description="Torque value of Tooth 36", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_36'))
-    Tip_37: bpy.props.FloatProperty(name="tip37", description="Tip value of Tooth 37", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_37'))
-    Tor_37: bpy.props.FloatProperty(name="tor37", description="Torque value of Tooth 37", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_37'))
-    Tip_38: bpy.props.FloatProperty(name="tip38", description="Tip value of Tooth 38", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_38'))
-    Tor_38: bpy.props.FloatProperty(name="tor38", description="Torque value of Tooth 38", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_38'))
-    
-    Tip_41: bpy.props.FloatProperty(name="tip41", description="Tip value of Tooth 41", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_41'))
-    Tor_41: bpy.props.FloatProperty(name="tor41", description="Torque value of Tooth 41", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_41'))
-    Tip_42: bpy.props.FloatProperty(name="tip42", description="Tip value of Tooth 42", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_42'))
-    Tor_42: bpy.props.FloatProperty(name="tor42", description="Torque value of Tooth 42", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_42'))
-    Tip_43: bpy.props.FloatProperty(name="tip43", description="Tip value of Tooth 43", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_43'))
-    Tor_43: bpy.props.FloatProperty(name="tor44", description="Torque value of Tooth 43", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_43'))
-    Tip_44: bpy.props.FloatProperty(name="tip44", description="Tip value of Tooth 44", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_44'))
-    Tor_44: bpy.props.FloatProperty(name="tor45", description="Torque value of Tooth 44", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_44'))
-    Tip_45: bpy.props.FloatProperty(name="tip45", description="Tip value of Tooth 45", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_45'))
-    Tor_45: bpy.props.FloatProperty(name="tor45", description="Torque value of Tooth 45", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_45'))
-    Tip_46: bpy.props.FloatProperty(name="tip46", description="Tip value of Tooth 46", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_46'))
-    Tor_46: bpy.props.FloatProperty(name="tor46", description="Torque value of Tooth 46", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_46'))
-    Tip_47: bpy.props.FloatProperty(name="tip47", description="Tip value of Tooth 47", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_47'))
-    Tor_47: bpy.props.FloatProperty(name="tor47", description="Torque value of Tooth 47", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_47'))
-    Tip_48: bpy.props.FloatProperty(name="tip48", description="Tip value of Tooth 48", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A_48'))
-    Tor_48: bpy.props.FloatProperty(name="tor48", description="Torque value of Tooth 48", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B_48'))
-
-    embed_11_21: bpy.props.FloatProperty(name="11_21", description="Embed volume between 21 and 11", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_11_21'))
-    
-    embed_11_12: bpy.props.FloatProperty(name="11_12", description="Embed volume between 11 and 12", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_11_12'))
-    embed_12_13: bpy.props.FloatProperty(name="12_13", description="Embed volume between 12 and 13", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_12_13'))
-    embed_13_14: bpy.props.FloatProperty(name="13_14", description="Embed volume between 13 and 14", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_13_14'))
-    embed_14_15: bpy.props.FloatProperty(name="14_15", description="Embed volume between 14 and 15", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_14_15'))
-    embed_15_16: bpy.props.FloatProperty(name="15_16", description="Embed volume between 15 and 16", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_15_16'))
-    embed_16_17: bpy.props.FloatProperty(name="16_17", description="Embed volume between 16 and 17", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_16_17'))
-    embed_17_18: bpy.props.FloatProperty(name="17_18", description="Embed volume between 17 and 18", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_17_18'))
-    
-    embed_21_22: bpy.props.FloatProperty(name="21_22", description="Embed volume between 21 and 22", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_21_22'))
-    embed_22_23: bpy.props.FloatProperty(name="22_23", description="Embed volume between 22 and 23", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_22_23'))
-    embed_23_24: bpy.props.FloatProperty(name="23_24", description="Embed volume between 23 and 24", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_23_24'))
-    embed_24_25: bpy.props.FloatProperty(name="24_25", description="Embed volume between 24 and 25", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_24_25'))
-    embed_25_26: bpy.props.FloatProperty(name="25_26", description="Embed volume between 25 and 26", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_25_26'))
-    embed_26_27: bpy.props.FloatProperty(name="26_27", description="Embed volume between 26 and 27", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_26_27'))
-    embed_27_28: bpy.props.FloatProperty(name="27_28", description="Embed volume between 27 and 28", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_27_28'))
-
-    embed_31_41: bpy.props.FloatProperty(name="31_41", description="Embed volume between 31 and 41", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_31_41'))
-    
-    embed_31_32: bpy.props.FloatProperty(name="31_32", description="Embed volume between 31 and 32", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_31_42'))
-    embed_32_33: bpy.props.FloatProperty(name="32_33", description="Embed volume between 32 and 33", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_32_43'))
-    embed_33_34: bpy.props.FloatProperty(name="33_34", description="Embed volume between 33 and 34", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_33_44'))
-    embed_34_35: bpy.props.FloatProperty(name="34_35", description="Embed volume between 34 and 35", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_34_45'))
-    embed_35_36: bpy.props.FloatProperty(name="35_36", description="Embed volume between 35 and 36", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_35_46'))
-    embed_36_37: bpy.props.FloatProperty(name="36_37", description="Embed volume between 36 and 37", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_36_47'))
-    embed_37_38: bpy.props.FloatProperty(name="37_38", description="Embed volume between 37 and 38", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_37_48'))
-    
-    embed_41_42: bpy.props.FloatProperty(name="41_42", description="Embed volume between 41 and 42", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_41_42'))
-    embed_42_43: bpy.props.FloatProperty(name="42_43", description="Embed volume between 42 and 43", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_42_43'))
-    embed_43_44: bpy.props.FloatProperty(name="43_44", description="Embed volume between 43 and 44", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_43_44'))
-    embed_44_45: bpy.props.FloatProperty(name="44_45", description="Embed volume between 44 and 45", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_44_45'))
-    embed_45_46: bpy.props.FloatProperty(name="45_46", description="Embed volume between 45 and 46", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_45_46'))
-    embed_46_47: bpy.props.FloatProperty(name="46_47", description="Embed volume between 46 and 47", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_46_47'))
-    embed_47_48: bpy.props.FloatProperty(name="47_48", description="Embed volume between 47 and 48", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_47_48'))
-
 class MESH_TO_ready_seperate_teeth(bpy.types.Operator):
     """Read for seperating teeth"""
     bl_idname = "mesh.ready_seperating"
@@ -1501,8 +1393,8 @@ class MESH_TO_smooth_tooth_edge(bpy.types.Operator):
                 bpy.ops.object.vertex_group_remove(all=True, all_unlocked=False)
                 bpy.ops.object.editmode_toggle()        # enter 'EDIT_MESH' mode
                 bpy.ops.mesh.select_all(action='SELECT')
-                bpy.ops.mesh.dissolve_degenerate(threshold=0.15)
-                bpy.ops.mesh.remove_doubles(threshold=1.3)
+                 bpy.ops.mesh.dissolve_degenerate(threshold=0.15)
+                bpy.ops.mesh.remove_doubles(threshold=1.0)
                 # add surface subdivision modifier
                 bpy.ops.object.modifier_add(type='SUBSURF')
                 bpy.context.object.modifiers["Subdivision"].levels = 2
@@ -1517,7 +1409,7 @@ class MESH_TO_smooth_tooth_edge(bpy.types.Operator):
                 bpy.context.object.modifiers["Smooth"].iterations = 5 
                 bpy.context.object.modifiers["Smooth"].show_in_editmode = True
                 bpy.context.object.modifiers["Smooth"].show_on_cage = True
-                bpy.context.object.modifiers["Smooth"].factor = 1.0
+                bpy.context.object.modifiers["Smooth"].factor = 0.65
                 
                 bpy.context.object.modifiers["Shrinkwrap"].show_on_cage = True
                 bpy.context.object.modifiers["Subdivision"].show_on_cage = True
@@ -4401,11 +4293,13 @@ class MESH_TO_generate_adjust_arch(bpy.types.Operator):
                 bpy.ops.object.select_all(action='DESELECT')
                 
                 for prefix in ('Tip', 'Tor'):
-                    prop_name = prefix + '_' + str(tooth_number)
                     if prefix == 'Tip':
-                        setattr(mytool, prop_name, tip_angle)
+                        setattr(obj, 'tip_orig', tip_angle)
+                        setattr(obj, 'tip', tip_angle)
                     if prefix == 'Tor':
-                        setattr(mytool, prop_name, tor_angle) 
+                        setattr(obj, 'tor_orig', tor_angle)
+                        setattr(obj, 'tor', tor_angle) 
+                obj.select_set(False)
                 print('==============================================')
 
         # Generate arch and enter edit mode for adjust
@@ -4578,15 +4472,18 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
         for obj in context.collection.objects:
             if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
+                context.view_layer.objects.active = obj
+                obj.select_set(True)
                 tooth_number = obj.name.split('_')[1]
                 tip_angle = tip_torque[tooth_number][0] * (math.pi / 180)
                 tor_angle = tip_torque[tooth_number][1] * (math.pi / 180)
                 for prefix in ('Tip', 'Tor'):
                     prop_name = prefix + '_' + tooth_number
                     if prefix == 'Tip':
-                        setattr(mytool, prop_name, tip_angle)
+                        setattr(obj, 'tip', tip_angle)
                     if prefix == 'Tor':
-                        setattr(mytool, prop_name, tor_angle) 
+                        setattr(obj, 'tor', tor_angle) 
+                obj.select_set(False)
 
         dental_arch_name = 'dental_arch_' + mytool.up_down
         if bpy.data.objects.get(dental_arch_name):
@@ -5666,265 +5563,19 @@ class VIEW3D_PT_smooth_tooth_edge(bpy.types.Panel):
                 split.label(text="Embed", text_ctxt="Embed Value", translate=True, icon='NONE', icon_value=0)
 
                 if mytool.up_down == 'UP_':
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="11", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_11', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_11', text='')
-                    split.prop(mytool,'embed_11_21', text='11-21')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="12", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_12', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_12', text='')
-                    split.prop(mytool,'embed_11_12', text='11-12')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="13", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_13', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_13', text='')
-                    split.prop(mytool,'embed_12_13', text='12-13')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="14", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_14', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_14', text='')
-                    split.prop(mytool,'embed_13_14', text='13-14')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="15", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_15', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_15', text='')
-                    split.prop(mytool,'embed_14_15', text='14-15')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="16", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_16', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_16', text='')
-                    split.prop(mytool,'embed_15_16', text='15-16')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="17", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_17', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_17', text='')
-                    split.prop(mytool,'embed_16_17', text='16-17')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="18", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_18', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_18', text='')
-                    split.prop(mytool,'embed_17_18', text='17-18')
+                    for obj in context.collection.objects:
+                        if obj.name.startswith('Tooth') and not obj.name.endswith('_coord'):
+                            number = obj.name.split('_')[1]
+                            row = col.row(align=True)
+                            split = row.split(factor= 0.1, align=True)
+                            split.label(text=number, text_ctxt="", translate=False, icon='NONE', icon_value=0)
+                            split = split.split(factor= 0.2, align=True)
+                            split.prop(obj, 'tip', text='')
+                            split = split.split(factor= 0.2, align=True)
+                            split.prop(obj, 'tor', text='')
 
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="21", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_21', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_21', text='')
-                    split.prop(mytool,'embed_11_21', text='11-21')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="22", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_22', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_22', text='')
-                    split.prop(mytool,'embed_21_22', text='21-22')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="23", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_23', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_23', text='')
-                    split.prop(mytool,'embed_22_23', text='22-23')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="24", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_24', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_24', text='')
-                    split.prop(mytool,'embed_23_24', text='23-24')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="25", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_25', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_25', text='')
-                    split.prop(mytool,'embed_24_25', text='24-25')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="26", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_26', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_26', text='')
-                    split.prop(mytool,'embed_25_26', text='25-26')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="27", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_27', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_27', text='')
-                    split.prop(mytool,'embed_26_27', text='26-27')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="28", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_28', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_28', text='')
-                    split.prop(mytool,'embed_27_28', text='27-28')
                 else:
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="31", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_31', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_31', text='')
-                    split.prop(mytool,'embed_31_41', text='31-41')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="32", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_32', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_32', text='')
-                    split.prop(mytool,'embed_31_32', text='31-32')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="33", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_33', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_33', text='')
-                    split.prop(mytool,'embed_32_33', text='32-33')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="34", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_34', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_34', text='')
-                    split.prop(mytool,'embed_33_34', text='33-34')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="35", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_35', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_35', text='')
-                    split.prop(mytool,'embed_34_35', text='34-35')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="36", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_36', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_36', text='')
-                    split.prop(mytool,'embed_35_36', text='35-36')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="37", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_37', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_37', text='')
-                    split.prop(mytool,'embed_36_37', text='36-37')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="38", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_38', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_38', text='')
-                    split.prop(mytool,'embed_37_38', text='37-38')
-
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="41", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_41', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_41', text='')
-                    split.prop(mytool,'embed_31_41', text='31-41')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="42", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_42', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_42', text='')
-                    split.prop(mytool,'embed_41_42', text='41-42')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="43", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_43', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_43', text='')
-                    split.prop(mytool,'embed_42_43', text='42-43')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="44", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_44', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_44', text='')
-                    split.prop(mytool,'embed_43_44', text='43-44')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="45", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_45', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_45', text='')
-                    split.prop(mytool,'embed_44_45', text='44-45')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="46", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_46', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_46', text='')
-                    split.prop(mytool,'embed_45_46', text='45-46')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="47", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_47', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_47', text='')
-                    split.prop(mytool,'embed_46_47', text='46-47')
-                    row = col.row(align=True)
-                    split = row.split(factor= 0.1, align=True)
-                    split.label(text="48", text_ctxt="", translate=False, icon='NONE', icon_value=0)
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tip_48', text='')
-                    split = split.split(factor= 0.2, align=True)
-                    split.prop(mytool, 'Tor_48', text='')
-                    split.prop(mytool,'embed_47_48', text='47-48')
+                  pass
 
 def exec_read_global_peremeter(commend,key):
     _locals = locals()
@@ -6172,6 +5823,12 @@ def register():
     bpy.types.Scene.my_tool = bpy.props.PointerProperty(type=MyProperties)
     bpy.types.Scene.reloadBlend = bpy.props.PointerProperty(type=BlendFileProperties)
     bpy.types.Scene.dic_prop = DictProperty()
+    bpy.types.Object.tip = bpy.props.FloatProperty(name="Tip Value", description="Tip value of tooth object", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'A'))
+    bpy.types.Object.tor = bpy.props.FloatProperty(name="Torque Value", description="Torque value of tooth object", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE', update=lambda s, c: update(s, c, 'B'))
+    bpy.types.Object.tip_orig = bpy.props.FloatProperty(name="Tip Value", description="Tip value of tooth object", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE')
+    bpy.types.Object.tor_orig = bpy.props.FloatProperty(name="Torque Value", description="Torque value of tooth object", default=0.0, min=-180, max=180, step=100, precision=2, options={'ANIMATABLE'}, subtype='ANGLE', unit='NONE')
+    bpy.types.Object.embed_last = bpy.props.FloatProperty(name="Embed Volume Of Last", description="Embed volume with last tooth", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_last'))
+    bpy.types.Object.embed_next = bpy.props.FloatProperty(name="Embed Volume Of Next", description="Embed volume with next tooth", default=0.0, min=-10, max=10, step=1, precision=2, options={'ANIMATABLE'}, subtype='NONE', unit='LENGTH', update=lambda s, c: update(s, c, 'C_next'))
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
