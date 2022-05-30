@@ -3807,7 +3807,7 @@ class MESH_TO_exturde_emboss_panel(bpy.types.Operator):
                 bpy.ops.mesh.select_all(action='DESELECT')
                 bpy.ops.mesh.select_non_manifold()
                 bpy.ops.mesh.edge_face_add()
-                bpy.ops.mesh.poke(offset=-1, use_relative_offset=True, center_mode='BOUNDS')
+                bpy.ops.mesh.poke(offset=1, use_relative_offset=True, center_mode='BOUNDS')
                 bpy.ops.mesh.select_all(action='DESELECT')
                 bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -4833,13 +4833,6 @@ class MESH_TO_automatic_arrange_teeth(bpy.types.Operator):
                 obj.select_set(True)
                 tooth_number = obj.name.split('_')[1]
                 arrange_list.append(int(tooth_number))
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.select_all(action='DESELECT')
-                bpy.ops.mesh.select_non_manifold()
-                bpy.context.scene.transform_orientation_slots[0].type = 'GLOBAL'
-                bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 4), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, True), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
-                bpy.ops.object.mode_set(mode='OBJECT')
-                bpy.context.scene.transform_orientation_slots[0].type = 'LOCAL'
                 obj.select_set(False)
 
         arrange_list.sort()

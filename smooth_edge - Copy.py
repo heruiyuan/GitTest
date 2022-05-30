@@ -1393,7 +1393,7 @@ class MESH_TO_smooth_tooth_edge(bpy.types.Operator):
                 bpy.ops.object.vertex_group_remove(all=True, all_unlocked=False)
                 bpy.ops.object.editmode_toggle()        # enter 'EDIT_MESH' mode
                 bpy.ops.mesh.select_all(action='SELECT')
-                 bpy.ops.mesh.dissolve_degenerate(threshold=0.15)
+                bpy.ops.mesh.dissolve_degenerate(threshold=0.15)
                 bpy.ops.mesh.remove_doubles(threshold=1.0)
                 # add surface subdivision modifier
                 bpy.ops.object.modifier_add(type='SUBSURF')
@@ -3699,10 +3699,10 @@ class MESH_TO_exturde_emboss_panel(bpy.types.Operator):
                 bpy.ops.mesh.select_all(action='DESELECT')
                 bpy.ops.mesh.select_non_manifold()
                 bpy.ops.mesh.edge_face_add()
-                bpy.ops.mesh.poke(offset=-1, use_relative_offset=True, center_mode='BOUNDS')
+                bpy.ops.mesh.poke(offset=1, use_relative_offset=True, center_mode='BOUNDS')
                 bpy.ops.mesh.select_all(action='DESELECT')
                 bpy.ops.object.mode_set(mode='OBJECT')
-
+                
                 obj.select_set(False)
 
         bpy.ops.object.select_all(action='DESELECT')
